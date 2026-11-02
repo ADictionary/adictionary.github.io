@@ -138,6 +138,10 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
 .nav #nav-fantasy.active .nav-icon{background:rgba(131,184,255,.15);color:var(--blue)}
 .nav #nav-picks.active{background:rgba(245,198,107,.12);border-color:rgba(245,198,107,.3);color:var(--amber)}
 .nav #nav-picks.active .nav-icon{background:rgba(245,198,107,.15);color:var(--amber)}
+.nav #nav-rankings.active{background:rgba(131,184,255,.12);border-color:rgba(131,184,255,.28);color:var(--blue)}
+.nav #nav-rankings.active .nav-icon{background:rgba(131,184,255,.15);color:var(--blue)}
+.nav #nav-news.active{background:rgba(245,198,107,.12);border-color:rgba(245,198,107,.28);color:var(--amber)}
+.nav #nav-news.active .nav-icon{background:rgba(245,198,107,.15);color:var(--amber)}
 .nav .nav-button:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .top-right{gap:9px}
 .site-toast{position:fixed;z-index:40;left:50%;bottom:22px;transform:translateX(-50%);max-width:min(520px,calc(100vw - 28px));padding:11px 15px;border:1px solid var(--line-2);border-radius:12px;background:#17232d;color:var(--text);box-shadow:var(--shadow);font-size:12px;font-weight:700;text-align:center}
@@ -159,6 +163,64 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   .data-state{display:none}
 }
 
+
+/* Rankings, player search and news additions */
+.nav .nav-button{min-width:102px}
+.rank-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(270px,.65fr);gap:14px;align-items:start}
+.rank-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-bottom:14px}
+.rank-summary .overview-card{min-height:80px}
+.rank-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:12px 0}
+.rank-tools input,.rank-tools select,.quick-tools input,.quick-tools select{background:var(--bg);border:1px solid var(--line-2);color:var(--text);border-radius:10px;padding:10px 11px;min-width:0}
+.rank-tools input{flex:1;min-width:180px}
+.rank-table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+.rank-table{width:100%;border-collapse:collapse;font-size:12px;min-width:620px}
+.rank-table th{padding:10px 11px;text-align:left;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.08em;background:var(--surface-2);white-space:nowrap}
+.rank-table td{padding:10px 11px;border-top:1px solid var(--line);vertical-align:middle}
+.rank-table tbody tr:hover{background:rgba(131,184,255,.045)}
+.rank-number{color:var(--muted);font:700 12px 'Space Grotesk',sans-serif;width:38px}
+.rank-player{display:flex;align-items:center;gap:9px;min-width:170px}
+.rank-avatar{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--surface-3);border:1px solid var(--line-2);font-size:9px;font-weight:800;color:var(--text);flex:none}
+.rank-player b{display:block;font-size:11px}.rank-player small{display:block;color:var(--muted);font-size:10px;margin-top:1px}
+.pos-chip{display:inline-flex;padding:3px 7px;border-radius:7px;background:var(--surface-3);font-size:9px;font-weight:800;letter-spacing:.04em}
+.rank-points{font:700 13px 'Space Grotesk',sans-serif;color:var(--green);white-space:nowrap}
+.add-player-btn{border:1px solid rgba(87,214,160,.32);background:rgba(87,214,160,.09);color:var(--green);border-radius:8px;padding:6px 9px;font-size:10px;font-weight:800;white-space:nowrap}
+.add-player-btn:hover{background:rgba(87,214,160,.17)}
+.rank-week-list{display:flex;flex-direction:column;gap:0}
+.rank-week-row{display:grid;grid-template-columns:22px minmax(0,1fr) 55px;align-items:center;gap:9px;padding:9px 0;border-top:1px solid var(--line)}
+.rank-week-row:first-child{border-top:0}.rank-week-num{color:var(--muted);font:700 11px 'Space Grotesk',sans-serif}
+.rank-week-name{font-size:11px;font-weight:800}.rank-week-name small{display:block;color:var(--muted);font-size:9px;font-weight:600;margin-top:2px}
+.rank-week-proj{text-align:right;font:700 12px 'Space Grotesk',sans-serif;color:var(--blue)}
+.source-link{display:inline-flex;align-items:center;gap:6px;color:var(--blue);font-size:11px;font-weight:800;text-decoration:none;margin-top:11px}
+.source-link:hover{text-decoration:underline;text-underline-offset:3px}
+.source-note{font-size:10px;line-height:1.55;color:#71818d;margin:11px 0 0}
+.quick-tools{display:grid;grid-template-columns:minmax(0,1fr) 115px;gap:8px;margin:10px 0}
+.quick-results{display:flex;flex-direction:column;gap:5px;margin-top:8px;max-height:245px;overflow:auto}
+.quick-result{display:flex;align-items:center;gap:9px;padding:7px 8px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.quick-result .rank-avatar{width:28px;height:28px}
+.quick-result-main{min-width:0;flex:1}.quick-result-main b{display:block;font-size:11px}.quick-result-main small{display:block;color:var(--muted);font-size:9px;margin-top:2px}
+.quick-empty{color:var(--muted);font-size:11px;padding:12px 4px}
+.roster-remove{border:0;background:transparent;color:var(--muted);font-size:10px;font-weight:700;padding:5px}.roster-remove:hover{color:var(--red)}
+.fantasy-roster-meta{display:flex;gap:8px 14px;flex-wrap:wrap;color:var(--muted);font-size:10px;margin:-3px 0 12px}
+.fantasy-roster-meta span+span:before{content:'·';color:#71818d;margin-right:8px}
+.fantasy-roster th:last-child,.fantasy-roster td:last-child{text-align:right}
+.manual-details{padding:0;overflow:hidden}
+.manual-details summary{cursor:pointer;padding:14px 17px;font-weight:800;font-size:12px;list-style:none}
+.manual-details summary::-webkit-details-marker{display:none}
+.manual-details summary:after{content:'＋';float:right;color:var(--green)}
+.manual-details[open] summary:after{content:'−'}
+.manual-inner{padding:0 17px 17px}
+.news-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.news-card{display:grid;grid-template-columns:112px minmax(0,1fr);gap:13px;padding:11px;background:var(--surface);border:1px solid var(--line);border-radius:14px;text-decoration:none;min-height:118px;transition:border-color .15s,transform .15s}
+.news-card:hover{border-color:#536b7d;transform:translateY(-1px)}
+.news-image{width:112px;height:96px;border-radius:9px;object-fit:cover;background:var(--surface-3)}
+.news-image-fallback{display:grid;place-items:center;color:var(--green);font:700 22px 'Space Grotesk',sans-serif}
+.news-copy{min-width:0}.news-copy small{display:block;color:var(--green);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
+.news-copy b{display:block;font-size:12px;line-height:1.4}.news-copy p{margin:5px 0 0;color:var(--muted);font-size:10px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.news-time{display:block;color:#71818d;font-size:9px;margin-top:7px}
+@media(max-width:950px){.rank-layout{grid-template-columns:1fr}}
+@media(max-width:850px){.nav .nav-button{min-width:0}.news-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.rank-summary{grid-template-columns:repeat(3,1fr);gap:6px}.rank-summary .overview-card{padding:9px}.rank-summary .overview-card strong{font-size:18px}.quick-tools{grid-template-columns:1fr 100px}.news-card{grid-template-columns:88px minmax(0,1fr);gap:10px}.news-image{width:88px;height:88px}.nav .nav-button{width:34px}}
+
 </style>
 </head>
 <body>
@@ -179,6 +241,14 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       <button class="nav-button" id="nav-picks" title="My Picks" aria-label="My Picks">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M7 3.8h10a2 2 0 0 1 2 2v14.4l-7-3.8-7 3.8V5.8a2 2 0 0 1 2-2Z"/><path d="m9 10 2 2 4-4"/></svg></span>
         <span class="nav-copy"><b>My Picks</b><small>Your record</small></span>
+      </button>
+      <button class="nav-button" id="nav-rankings" title="Rankings" aria-label="Rankings">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19V5M4 19h17"/><path d="M8 15l3-4 3 2 5-7"/><circle cx="19" cy="6" r="1"/></svg></span>
+        <span class="nav-copy"><b>Rankings</b><small>PPR leaders</small></span>
+      </button>
+      <button class="nav-button" id="nav-news" title="NFL News" aria-label="NFL News">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14a2 2 0 0 1 2 2v13H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/><path d="M7 8h10M7 12h10M7 16h6"/></svg></span>
+        <span class="nav-copy"><b>News</b><small>NFL headlines</small></span>
       </button>
     </nav>
     <div class="top-right">
@@ -222,22 +292,24 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     <div class="grid" id="gamesGrid" aria-live="polite">
       <div class="empty"><div class="loading"><i class="spinner"></i> Loading NFL scoreboard…</div></div>
     </div>
-    <p class="note">Scores, game leaders and player box scores are retrieved from ESPN’s public feeds and refresh automatically. This is an independent fan-made scoreboard, not affiliated with or endorsed by the NFL or ESPN.</p>
+    <p class="note">Scores, game leaders, matchup records and player box scores are retrieved from ESPN’s public feeds and refresh automatically. This is an independent fan-made scoreboard, not affiliated with or endorsed by the NFL or ESPN.</p>
   </section>
   <section id="detailView" hidden></section>
   <section id="picksView" hidden></section>
   <section id="fantasyView" hidden></section>
+  <section id="rankingsView" hidden></section>
+  <section id="newsView" hidden></section>
   <section id="aboutView" hidden>
     <button class="back" id="aboutBack">← Back to scoreboard</button>
     <div class="panel" style="max-width:760px;padding:25px">
       <div class="eyebrow">About this project</div><h2 style="font:700 26px 'Space Grotesk',sans-serif;margin:8px 0 10px">Fourth &amp; Goal</h2>
-      <p style="color:var(--muted);line-height:1.7">Fourth &amp; Goal is an independent NFL scoreboard, free prediction game and fantasy player tracker. View game leaders, track a roster using standard full-PPR scoring, and make free game predictions.</p>
+      <p style="color:var(--muted);line-height:1.7">Fourth &amp; Goal is an independent NFL scoreboard, free prediction game and fantasy player tracker. View game leaders, explore PPR rankings, follow NFL headlines, track a roster using standard full-PPR scoring, and make free game predictions.</p>
       <p style="color:var(--muted);line-height:1.7">The page reads the current-week NFL scoreboard from ESPN’s publicly accessible JSON feed. ESPN does not provide a stable public developer contract for this endpoint, so the feed format or availability could change. If the feed is unavailable, use the refresh button to try again later.</p>
       <p style="color:var(--muted);font-size:12px">Data source: <a href="https://www.espn.com/nfl/scoreboard" target="_blank" rel="noopener">ESPN NFL scoreboard</a>.</p>
     </div>
   </section>
 </main>
-<footer><div class="shell footer-inner"><span>© Fourth &amp; Goal · Independent NFL fan project</span><span id="updatedAt">Waiting for first update</span><span>Scores and player stats refresh automatically · Rosters saved on this device</span></div></footer>
+<footer><div class="shell footer-inner"><span>© Fourth &amp; Goal · Independent NFL fan project</span><span id="updatedAt">Waiting for first update</span><span>Scores and player stats refresh automatically · Personal data stays in this browser</span></div></footer>
 <script>
 (() => {
   'use strict';
@@ -248,7 +320,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   const FANTASY_STORAGE = 'fourth-goal-fantasy-v1';
   const readFantasy = () => { try { const value = JSON.parse(localStorage.getItem(FANTASY_STORAGE) || '{}'); return value && typeof value === 'object' ? value : {}; } catch (_) { return {}; } };
   const readPicks = () => { try { const value = JSON.parse(localStorage.getItem(PICK_STORAGE) || '{}'); return value && typeof value === 'object' ? value : {}; } catch (_) { return {}; } };
-  const state = { games: [], picks: readPicks(), fantasy: readFantasy(), fantasyDraft: {leagueId:'',season:'',rosterText:''}, fantasyLeagueTeams: [], fantasyMessage: '', fantasyLoading: false, fantasyPhotoLookupRunning: false, gameSummaries: {}, gameLeaders: {}, gamePlayerStats: {}, leaderFetchedAt: {}, leaderFetchState: {}, leaderBatchLoading: false, filter: 'all', query: '', selectedId: null, summary: null, summaryLoading: false, loading: false, error: '', lastUpdated: null, week: null, season: null, sort: 'time' };
+  const state = { games: [], picks: readPicks(), fantasy: readFantasy(), fantasyDraft: {leagueId:'',season:'',rosterText:''}, fantasyLeagueTeams: [], fantasyMessage: '', fantasyLoading: false, fantasyPhotoLookupRunning: false, gameSummaries: {}, gameLeaders: {}, gamePlayerStats: {}, leaderFetchedAt: {}, leaderFetchState: {}, leaderBatchLoading: false, filter: 'all', query: '', selectedId: null, summary: null, summaryLoading: false, loading: false, error: '', lastUpdated: null, week: null, season: null, sort: 'time', rankingQuery:'', rankingPosition:'ALL', rankingSort:'points', fantasyPlayerQuery:'', fantasyPlayerPosition:'ALL', newsItems:[], newsLoading:false, newsError:'', newsLastUpdated:null };
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const hexColor = value => /^[0-9a-f]{6}$/i.test(String(value || '')) ? `#${value}` : '#526575';
@@ -463,6 +535,9 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   }
 
 
+  const SEASON_PPR_LEADERS = [{"name": "Jaxon Smith-Njigba", "pos": "WR", "team": "SEA", "games": 7, "points": 196.16, "ppg": 28.02}, {"name": "Jahmyr Gibbs", "pos": "RB", "team": "DET", "games": 7, "points": 195.8, "ppg": 27.97}, {"name": "Josh Allen", "pos": "QB", "team": "BUF", "games": 7, "points": 187.82, "ppg": 26.83}, {"name": "Joe Burrow", "pos": "QB", "team": "CIN", "games": 7, "points": 169.6, "ppg": 24.23}, {"name": "CeeDee Lamb", "pos": "WR", "team": "DAL", "games": 8, "points": 168.3, "ppg": 21.04}, {"name": "Drake Maye", "pos": "QB", "team": "NE", "games": 8, "points": 160.92, "ppg": 20.12}, {"name": "Kenneth Walker III", "pos": "RB", "team": "KC", "games": 7, "points": 160.1, "ppg": 22.87}, {"name": "Kirk Cousins", "pos": "QB", "team": "LV", "games": 8, "points": 159.66, "ppg": 19.96}, {"name": "Bijan Robinson", "pos": "RB", "team": "ATL", "games": 8, "points": 153.3, "ppg": 19.16}, {"name": "Trey McBride", "pos": "TE", "team": "ARI", "games": 8, "points": 150.4, "ppg": 18.8}, {"name": "Kyren Williams", "pos": "RB", "team": "LAR", "games": 8, "points": 150.0, "ppg": 18.75}, {"name": "Jordan Love", "pos": "QB", "team": "GB", "games": 8, "points": 148.84, "ppg": 18.61}, {"name": "Dak Prescott", "pos": "QB", "team": "DAL", "games": 8, "points": 147.94, "ppg": 18.49}, {"name": "Christian Watson", "pos": "WR", "team": "GB", "games": 8, "points": 146.8, "ppg": 18.35}, {"name": "Brock Purdy", "pos": "QB", "team": "SF", "games": 7, "points": 146.02, "ppg": 20.86}, {"name": "Jonathan Taylor", "pos": "RB", "team": "IND", "games": 8, "points": 144.2, "ppg": 18.02}, {"name": "Christian McCaffrey", "pos": "RB", "team": "SF", "games": 7, "points": 144.0, "ppg": 20.57}, {"name": "Jared Goff", "pos": "QB", "team": "DET", "games": 7, "points": 142.06, "ppg": 20.29}, {"name": "Amon-Ra St. Brown", "pos": "WR", "team": "DET", "games": 7, "points": 141.0, "ppg": 20.14}, {"name": "Jaylen Warren", "pos": "RB", "team": "PIT", "games": 8, "points": 140.8, "ppg": 17.6}, {"name": "Tee Higgins", "pos": "WR", "team": "CIN", "games": 7, "points": 139.6, "ppg": 19.94}, {"name": "Puka Nacua", "pos": "WR", "team": "LAR", "games": 6, "points": 138.6, "ppg": 23.1}, {"name": "Javonte Williams", "pos": "RB", "team": "DAL", "games": 8, "points": 137.2, "ppg": 17.15}, {"name": "Derrick Henry", "pos": "RB", "team": "BAL", "games": 8, "points": 136.7, "ppg": 17.09}, {"name": "Trevor Lawrence", "pos": "QB", "team": "JAX", "games": 7, "points": 133.6, "ppg": 19.09}, {"name": "Chuba Hubbard", "pos": "RB", "team": "CAR", "games": 7, "points": 133.0, "ppg": 19.0}, {"name": "Ashton Jeanty", "pos": "RB", "team": "LV", "games": 8, "points": 132.3, "ppg": 16.54}, {"name": "James Cook", "pos": "RB", "team": "BUF", "games": 7, "points": 131.7, "ppg": 18.81}, {"name": "Matthew Stafford", "pos": "QB", "team": "LAR", "games": 8, "points": 131.64, "ppg": 16.46}, {"name": "Matthew Golden", "pos": "WR", "team": "GB", "games": 8, "points": 131.5, "ppg": 16.44}, {"name": "Bucky Irving", "pos": "RB", "team": "TB", "games": 8, "points": 130.6, "ppg": 16.32}, {"name": "C.J. Stroud", "pos": "QB", "team": "HOU", "games": 7, "points": 128.68, "ppg": 18.38}, {"name": "Ja'Marr Chase", "pos": "WR", "team": "CIN", "games": 7, "points": 128.2, "ppg": 18.31}, {"name": "Bryce Young", "pos": "QB", "team": "CAR", "games": 7, "points": 126.24, "ppg": 18.03}, {"name": "Tyler Shough", "pos": "QB", "team": "NO", "games": 7, "points": 125.94, "ppg": 17.99}, {"name": "Patrick Mahomes", "pos": "QB", "team": "KC", "games": 7, "points": 125.5, "ppg": 17.93}, {"name": "Chris Olave", "pos": "WR", "team": "NO", "games": 7, "points": 124.6, "ppg": 17.8}, {"name": "Brock Bowers", "pos": "TE", "team": "LV", "games": 6, "points": 123.7, "ppg": 20.62}, {"name": "Geno Smith", "pos": "QB", "team": "NYJ", "games": 8, "points": 123.12, "ppg": 15.39}, {"name": "D'Andre Swift", "pos": "RB", "team": "CHI", "games": 7, "points": 122.8, "ppg": 17.54}, {"name": "Zay Flowers", "pos": "WR", "team": "BAL", "games": 7, "points": 122.2, "ppg": 17.46}, {"name": "Malik Nabers", "pos": "WR", "team": "NYG", "games": 7, "points": 120.5, "ppg": 17.21}, {"name": "Bhayshul Tuten", "pos": "RB", "team": "JAX", "games": 7, "points": 118.3, "ppg": 16.9}, {"name": "Deshaun Watson", "pos": "QB", "team": "CLE", "games": 8, "points": 117.94, "ppg": 14.74}, {"name": "Aaron Rodgers", "pos": "QB", "team": "PIT", "games": 8, "points": 117.14, "ppg": 14.64}, {"name": "Tony Pollard", "pos": "RB", "team": "TEN", "games": 8, "points": 116.5, "ppg": 14.56}, {"name": "Bo Nix", "pos": "QB", "team": "DEN", "games": 8, "points": 115.12, "ppg": 14.39}, {"name": "Garrett Wilson", "pos": "WR", "team": "NYJ", "games": 8, "points": 113.7, "ppg": 14.21}, {"name": "Isaiah Likely", "pos": "TE", "team": "NYG", "games": 7, "points": 112.5, "ppg": 16.07}, {"name": "Jacoby Brissett", "pos": "QB", "team": "ARI", "games": 8, "points": 111.16, "ppg": 13.89}, {"name": "Drake London", "pos": "WR", "team": "ATL", "games": 8, "points": 109.8, "ppg": 13.72}, {"name": "Tetairoa McMillan", "pos": "WR", "team": "CAR", "games": 7, "points": 108.9, "ppg": 15.56}, {"name": "Michael Wilson", "pos": "WR", "team": "ARI", "games": 8, "points": 108.68, "ppg": 13.58}, {"name": "George Kittle", "pos": "TE", "team": "SF", "games": 7, "points": 104.5, "ppg": 14.93}, {"name": "George Pickens", "pos": "WR", "team": "DAL", "games": 8, "points": 104.3, "ppg": 13.04}, {"name": "Davante Adams", "pos": "WR", "team": "LAR", "games": 6, "points": 102.0, "ppg": 17.0}, {"name": "Malik Willis", "pos": "QB", "team": "MIA", "games": 7, "points": 101.22, "ppg": 14.46}, {"name": "Jameson Williams", "pos": "WR", "team": "DET", "games": 7, "points": 100.7, "ppg": 14.39}, {"name": "Jayden Daniels", "pos": "QB", "team": "WAS", "games": 5, "points": 100.64, "ppg": 20.13}, {"name": "Cam Ward", "pos": "QB", "team": "TEN", "games": 8, "points": 100.52, "ppg": 12.56}, {"name": "Tre Tucker", "pos": "WR", "team": "LV", "games": 8, "points": 99.8, "ppg": 12.47}, {"name": "Braelon Allen", "pos": "RB", "team": "NYJ", "games": 8, "points": 99.6, "ppg": 12.45}, {"name": "Rhamondre Stevenson", "pos": "RB", "team": "NE", "games": 8, "points": 98.9, "ppg": 12.36}, {"name": "Luther Burden III", "pos": "WR", "team": "CHI", "games": 7, "points": 97.0, "ppg": 13.86}, {"name": "Parker Washington", "pos": "WR", "team": "JAX", "games": 7, "points": 95.5, "ppg": 13.64}, {"name": "Chase Brown", "pos": "RB", "team": "CIN", "games": 7, "points": 90.9, "ppg": 12.99}, {"name": "Harold Fannin Jr.", "pos": "TE", "team": "CLE", "games": 8, "points": 90.1, "ppg": 11.26}, {"name": "Mike Evans", "pos": "WR", "team": "SF", "games": 6, "points": 89.0, "ppg": 14.83}, {"name": "Tucker Kraft", "pos": "TE", "team": "GB", "games": 8, "points": 88.5, "ppg": 11.06}, {"name": "Denzel Boston", "pos": "WR", "team": "CLE", "games": 8, "points": 86.9, "ppg": 10.86}, {"name": "Quinshon Judkins", "pos": "RB", "team": "CLE", "games": 7, "points": 86.6, "ppg": 12.37}, {"name": "Justin Jefferson", "pos": "WR", "team": "MIN", "games": 6, "points": 86.4, "ppg": 14.4}, {"name": "Sam LaPorta", "pos": "TE", "team": "DET", "games": 7, "points": 85.9, "ppg": 12.27}, {"name": "Devaughn Vele", "pos": "WR", "team": "NO", "games": 7, "points": 85.8, "ppg": 12.26}, {"name": "Tyler Allgeier", "pos": "RB", "team": "ARI", "games": 8, "points": 84.1, "ppg": 10.51}, {"name": "Caleb Williams", "pos": "QB", "team": "CHI", "games": 4, "points": 83.6, "ppg": 20.9}, {"name": "Blake Corum", "pos": "RB", "team": "LAR", "games": 8, "points": 82.8, "ppg": 10.35}, {"name": "Michael Penix Jr.", "pos": "QB", "team": "ATL", "games": 6, "points": 82.78, "ppg": 13.8}, {"name": "Stefon Diggs", "pos": "WR", "team": "WAS", "games": 6, "points": 82.2, "ppg": 13.7}, {"name": "Travis Kelce", "pos": "TE", "team": "KC", "games": 7, "points": 82.0, "ppg": 11.71}, {"name": "Jalen Coker", "pos": "WR", "team": "CAR", "games": 6, "points": 81.4, "ppg": 13.57}, {"name": "DeMario Douglas", "pos": "WR", "team": "NE", "games": 8, "points": 81.2, "ppg": 10.15}, {"name": "Jalen Hurts", "pos": "QB", "team": "PHI", "games": 5, "points": 80.02, "ppg": 16.0}, {"name": "Aaron Jones", "pos": "RB", "team": "MIN", "games": 7, "points": 79.8, "ppg": 11.4}];
+  const WEEK10_PPR_SNAPSHOT = [{"rank": 1, "name": "Josh Allen", "pos": "QB", "team": "BUF", "proj": 22.7}, {"rank": 2, "name": "Jahmyr Gibbs", "pos": "RB", "team": "DET", "proj": 20.7}, {"rank": 3, "name": "Kenneth Walker III", "pos": "RB", "team": "KC", "proj": 20.7}, {"rank": 4, "name": "Bijan Robinson", "pos": "RB", "team": "ATL", "proj": 20.6}, {"rank": 5, "name": "Brock Purdy", "pos": "QB", "team": "SF", "proj": 20.6}, {"rank": 6, "name": "Malik Nabers", "pos": "WR", "team": "NYG", "proj": 20.3}, {"rank": 7, "name": "Jaxon Smith-Njigba", "pos": "WR", "team": "SEA", "proj": 20.2}, {"rank": 8, "name": "Drake Maye", "pos": "QB", "team": "NE", "proj": 20.1}, {"rank": 9, "name": "Jordan Love", "pos": "QB", "team": "GB", "proj": 20.0}, {"rank": 10, "name": "Joe Burrow", "pos": "QB", "team": "CIN", "proj": 19.9}];
+  const NFL_NEWS_API = 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/news?limit=16';
   const normName = value => String(value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
   const statNumber = value => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -653,7 +728,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     const players=state.fantasy.players || [];
     if (!players.length) return '<div class="fantasy-empty">Your roster will appear here. Import a public ESPN league or add players manually.</div>';
     let total=0,matched=0;
-    const rows=players.map(player=>{
+    const rows=players.map((player,playerIndex)=>{
       const stats=findPlayerStats(player);
       const unsupported=['K','D/ST'].includes(fantasyPosition(player));
       const points=stats&&!unsupported?pprPoints(stats):null;
@@ -672,9 +747,9 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       }
       const detail=unsupported?'Kicker and team-defense scoring are not included in this tracker.':stats?(statBits.join(' · ')||'Box score available; no listed offensive stats.'):'Live stats will show once ESPN posts this player’s box score.';
       const avatar=fantasyAvatar(player,stats);
-      return `<tr><td><div class="fantasy-player-cell">${avatar}<span><span class="fantasy-player">${esc(player.name)}</span><span class="fantasy-sub">${esc(fantasyPosition(player))}${player.teamAbbr?` · ${esc(player.teamAbbr)}`:''}</span></span></div></td><td><span class="fantasy-points">${points===null?'—':points.toFixed(1)}</span><span class="fantasy-sub">${esc(unsupported?'Not included':playerStatus(player,stats))}</span></td><td><span class="fantasy-status">${esc(detail)}</span></td></tr>`;
+      return `<tr><td><div class="fantasy-player-cell">${avatar}<span><span class="fantasy-player">${esc(player.name)}</span><span class="fantasy-sub">${esc(fantasyPosition(player))}${player.teamAbbr?` · ${esc(player.teamAbbr)}`:''}</span></span></div></td><td><span class="fantasy-points">${points===null?'—':points.toFixed(1)}</span><span class="fantasy-sub">${esc(unsupported?'Not included':playerStatus(player,stats))}</span></td><td><span class="fantasy-status">${esc(detail)}</span></td><td><button class="roster-remove" type="button" data-remove-player="${playerIndex}">Remove</button></td></tr>`;
     }).join('');
-    return `<div class="fantasy-scorebar"><strong class="fantasy-score">${total.toFixed(1)}</strong><span>combined roster PPR points</span><span>·</span><span>${matched} of ${players.length} players have stats</span></div><div style="overflow-x:auto"><table class="fantasy-roster"><thead><tr><th>Player</th><th>Points</th><th>Game stats</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+    return `<div class="fantasy-scorebar"><strong class="fantasy-score">${total.toFixed(1)}</strong><span>combined roster PPR points</span><span>·</span><span>${matched} of ${players.length} players have stats</span></div><div style="overflow-x:auto"><table class="fantasy-roster"><thead><tr><th>Player</th><th>Points</th><th>Game stats</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }
   function renderFantasyPage() {
     if (!$('fantasyView')) return;
@@ -687,18 +762,54 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     const teamOptions=state.fantasyLeagueTeams.map(t=>`<option value="${esc(t.id)}" ${String(t.id)===String(state.fantasy.selectedTeamId)?'selected':''}>${esc(t.name)}</option>`).join('');
     const message=state.fantasyMessage?`<p class="fantasy-message ${state.fantasyMessageType==='error'?'error':''}">${esc(state.fantasyMessage)}</p>`:'';
     const source=state.fantasy.source==='espn'?`Imported roster · public ESPN league ${esc(league.id||'')}`:state.fantasy.source==='manual'?'Manually entered roster':'No roster connected';
-    $('fantasyView').innerHTML=`<div class="page-head"><div><div class="eyebrow">Your lineup · live stats</div><h1>Fantasy team</h1><p>Track your players’ current-week points using standard full PPR.</p></div><span class="ppr-chip">1.0 PPR</span></div>
+    const posCounts=['QB','RB','WR','TE'].map(pos=>`${pos} ${players.filter(p=>fantasyPosition(p)===pos).length}`).join(' · ');
+    $('fantasyView').innerHTML=`<div class="page-head"><div><div class="eyebrow">Lineup lab · live box scores</div><h1>Fantasy team</h1><p>Build your roster, track weekly production and compare your players with the PPR leaderboard.</p></div><span class="ppr-chip">FULL PPR · 1.0</span></div>
       ${message}
       <div class="fantasy-columns">
-        <div class="panel"><div class="panel-head"><h3>Connect a public ESPN league</h3><span>League ID only</span></div>
-          <form class="fantasy-form" id="leagueForm"><div><label for="leagueIdInput">ESPN league ID</label><input id="leagueIdInput" inputmode="numeric" placeholder="e.g. 123456789" autocomplete="off" value="${esc(leagueIdValue)}"></div><div><label for="leagueSeasonInput">Season</label><input id="leagueSeasonInput" type="number" min="2018" max="${new Date().getFullYear()+1}" value="${esc(seasonValue)}"></div><button class="fantasy-btn" type="submit" ${state.fantasyLoading?'disabled':''}>${state.fantasyLoading?'Connecting…':'Find public league'}</button><p class="fantasy-help">Public ESPN leagues may import without signing in. Private leagues require ESPN session authentication, which this standalone page intentionally does not collect. ESPN’s Fantasy endpoint is unofficial and may change.</p></form>
-          ${state.fantasyLeagueTeams.length?`<div style="margin-top:13px"><label for="leagueTeamSelect" class="fantasy-help">Choose your team</label><select id="leagueTeamSelect" class="select" style="width:100%;margin:6px 0 9px">${teamOptions}</select><button class="fantasy-btn secondary" type="button" id="useLeagueTeam">Use this roster</button></div>`:''}
+        <div class="panel"><div class="panel-head"><h3>Connect ESPN Fantasy</h3><span>Public leagues</span></div>
+          <form class="fantasy-form" id="leagueForm"><div><label for="leagueIdInput">ESPN league ID or league URL</label><input id="leagueIdInput" inputmode="numeric" placeholder="Paste league ID or ESPN URL" autocomplete="off" value="${esc(leagueIdValue)}"></div><div><label for="leagueSeasonInput">Season</label><input id="leagueSeasonInput" type="number" min="2018" max="${new Date().getFullYear()+1}" value="${esc(seasonValue)}"></div><button class="fantasy-btn" type="submit" ${state.fantasyLoading?'disabled':''}>${state.fantasyLoading?'Connecting…':'Find public league'}</button><p class="fantasy-help">Public ESPN leagues may import without signing in. Private leagues need account-session authentication, which this page does not collect. ESPN’s fantasy endpoint is unofficial and may change.</p></form>
+          ${state.fantasyLeagueTeams.length?`<div style="margin-top:13px"><label for="leagueTeamSelect" class="fantasy-help">Choose your team</label><select id="leagueTeamSelect" class="select" style="width:100%;margin:6px 0 9px">${teamOptions}</select><button class="fantasy-btn secondary" type="button" id="useLeagueTeam">Import selected roster</button></div>`:''}
         </div>
-        <div class="panel"><div class="panel-head"><h3>Add your players manually</h3><span>Fallback</span></div><form class="fantasy-form" id="manualRosterForm"><div><label for="rosterText">One player per line</label><textarea id="rosterText" placeholder="Josh Allen, QB, BUF&#10;James Cook, RB, BUF&#10;CeeDee Lamb, WR, DAL&#10;Travis Kelce, TE, KC">${esc(rosterValue)}</textarea></div><button class="fantasy-btn" type="submit">Save my roster</button><p class="fantasy-help">Format: Player Name, Position, NFL team abbreviation. Headshots are looked up from ESPN when available.</p></form>
+        <div class="panel"><div class="panel-head"><h3>Quick-add players</h3><span>${players.length} on roster</span></div>
+          <p class="fantasy-help">Search the 2026 season leaderboard and add players with one click. Headshots are fetched from ESPN when a player is added.</p>
+          <div class="quick-tools"><input id="fantasyPlayerSearch" type="search" placeholder="Search player name…" autocomplete="off" value="${esc(state.fantasyPlayerQuery)}"><select id="fantasyPlayerPosition" aria-label="Filter player position"><option value="ALL" ${state.fantasyPlayerPosition==='ALL'?'selected':''}>All positions</option>${['QB','RB','WR','TE'].map(p=>`<option value="${p}" ${state.fantasyPlayerPosition===p?'selected':''}>${p}</option>`).join('')}</select></div>
+          <div class="quick-results" id="fantasyQuickResults"></div>
+          <p class="fantasy-help" style="margin-top:9px">Can't find someone? Use the manual roster option below.</p>
         </div>
       </div>
-      <div class="panel" id="fantasyRosterPanel"><div class="panel-head"><h3>Current week roster</h3><span>${esc(source)}</span></div><div id="fantasyRosterContent">${fantasyRosterMarkup()}</div><div id="fantasyRosterActions">${players.length?'<div style="margin-top:12px"><button class="fantasy-btn secondary" type="button" id="clearRoster">Clear roster</button></div>':''}</div></div>
-      <p class="note">Standard full-PPR formula: 1 point per reception; 0.1 per rushing/receiving yard; 0.04 per passing yard; 6 per rushing/receiving TD; 4 per passing TD; −2 per interception or lost fumble; 2 per two-point conversion. Current-week player box scores come from ESPN game summaries. Kicker and team-defense scoring, league-specific bonuses and custom scoring are not included.</p>`;
+      <details class="panel manual-details"><summary>Paste or edit a full roster manually</summary><div class="manual-inner"><form class="fantasy-form" id="manualRosterForm"><div><label for="rosterText">One player per line: Name, Position, Team</label><textarea id="rosterText" placeholder="Josh Allen, QB, BUF&#10;James Cook, RB, BUF&#10;CeeDee Lamb, WR, DAL&#10;Trey McBride, TE, ARI">${esc(rosterValue)}</textarea></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="fantasy-btn" type="submit">Save roster</button><button class="fantasy-btn secondary" type="button" id="copyRosterTemplate">Copy roster format</button></div><p class="fantasy-help">For example: Josh Allen, QB, BUF. The site matches names with ESPN box scores where possible.</p></form></div></details>
+      <div class="panel" id="fantasyRosterPanel"><div class="panel-head"><h3>My roster</h3><span>${esc(source)}</span></div>
+        ${players.length?`<div class="fantasy-roster-meta"><span>${players.length} players</span><span>${esc(posCounts)}</span><span>Points update as game box scores arrive</span></div>`:''}
+        <div id="fantasyRosterContent">${fantasyRosterMarkup()}</div>
+        <div id="fantasyRosterActions">${players.length?'<div style="margin-top:12px"><button class="fantasy-btn secondary" type="button" id="clearRoster">Clear roster</button></div>':''}</div>
+      </div>
+      <p class="note">Standard full-PPR scoring: 1 point per reception; 0.1 per rushing/receiving yard; 0.04 per passing yard; 6 per rushing/receiving TD; 4 per passing TD; −2 per interception or lost fumble; 2 per two-point conversion. Kicker and team-defense scoring, league-specific bonuses and custom scoring are not included.</p>`;
+    renderFantasyPlayerResults();
+    resolveFantasyHeadshots();
+  }
+  function renderFantasyPlayerResults() {
+    const host=$('fantasyQuickResults');
+    if(!host) return;
+    const query=normName(state.fantasyPlayerQuery||'');
+    const pos=state.fantasyPlayerPosition||'ALL';
+    const current=new Set((state.fantasy.players||[]).map(p=>normName(p.name)));
+    const list=SEASON_PPR_LEADERS.map((p,index)=>({...p,index})).filter(p=>(pos==='ALL'||p.pos===pos)&&(!query||normName(p.name).includes(query)||p.team.toLowerCase().includes(query))).slice(0,9);
+    host.innerHTML=list.length?list.map(p=>`<div class="quick-result"><span class="rank-avatar">${esc(initials(p.name))}</span><div class="quick-result-main"><b>${esc(p.name)}</b><small>${esc(p.pos)} · ${esc(p.team)} · ${p.ppg.toFixed(1)} PPR/game</small></div><button class="add-player-btn" data-add-player="${p.index}" ${current.has(normName(p.name))?'disabled':''}>${current.has(normName(p.name))?'Added':'Add'}</button></div>`).join(''):'<div class="quick-empty">No leaderboard match. Try another spelling or use manual entry.</div>';
+  }
+  function addPlayerToRoster(player) {
+    if(!player) return;
+    const players=state.fantasy.players || (state.fantasy.players=[]);
+    if(players.some(p=>normName(p.name)===normName(player.name))){showSiteToast(`${player.name} is already on your roster.`);return;}
+    players.push({name:player.name,position:player.pos||player.position||'',teamAbbr:player.team||player.teamAbbr||'',id:player.id?String(player.id):'',headshot:player.headshot||''});
+    state.fantasy.source=state.fantasy.source||'manual';
+    state.fantasyDraft.rosterText=players.map(p=>[p.name,p.position||'',p.teamAbbr||''].filter(Boolean).join(', ')).join('\n');
+    saveFantasy();
+    if(!$('fantasyView').hidden){
+      const panel=$('fantasyRosterContent');if(panel)panel.innerHTML=fantasyRosterMarkup();
+      const acts=$('fantasyRosterActions');if(acts)acts.innerHTML='<div style="margin-top:12px"><button class="fantasy-btn secondary" type="button" id="clearRoster">Clear roster</button></div>';
+      renderFantasyPlayerResults();
+    }
+    showSiteToast(`${player.name} added to your roster.`);
     resolveFantasyHeadshots();
   }
   function refreshFantasyRoster() {
@@ -752,6 +863,50 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     if(!players.length){state.fantasyMessage='Add at least one player before saving your roster.';state.fantasyMessageType='error';renderFantasyPage();return;}
     state.fantasy.players=players;state.fantasy.source='manual';state.fantasy.league=null;state.fantasy.selectedTeamId=null;state.fantasyLeagueTeams=[];state.fantasyDraft.rosterText=String(text||'');saveFantasy();
     state.fantasyMessage=`Saved ${players.length} players. Their points and ESPN headshots will fill in when available.`;state.fantasyMessageType='';renderFantasyPage();
+  }
+
+  function renderRankingsTable() {
+    const host=$('rankingsTableBody');if(!host)return;
+    const q=normName(state.rankingQuery||'');
+    const pos=state.rankingPosition||'ALL';
+    let list=SEASON_PPR_LEADERS.map((p,index)=>({...p,index})).filter(p=>(pos==='ALL'||p.pos===pos)&&(!q||normName(p.name).includes(q)||p.team.toLowerCase().includes(q)));
+    if(state.rankingSort==='ppg')list.sort((a,b)=>b.ppg-a.ppg);else if(state.rankingSort==='name')list.sort((a,b)=>a.name.localeCompare(b.name));else list.sort((a,b)=>b.points-a.points);
+    host.innerHTML=list.length?list.map((p,i)=>`<tr><td class="rank-number">${i+1}</td><td><div class="rank-player"><span class="rank-avatar">${esc(initials(p.name))}</span><span><b>${esc(p.name)}</b><small>${esc(p.team)} · ${p.games} games</small></span></div></td><td><span class="pos-chip">${esc(p.pos)}</span></td><td><span class="rank-points">${p.points.toFixed(1)}</span></td><td>${p.ppg.toFixed(2)}</td><td><button class="add-player-btn" data-rank-add="${p.index}">Add to roster</button></td></tr>`).join(''):'<tr><td colspan="6" class="quick-empty">No players match these filters.</td></tr>';
+    const count=$('rankingResultCount');if(count)count.textContent=`${list.length} players`;
+  }
+  function renderRankingsPage() {
+    const weeklyRows=WEEK10_PPR_SNAPSHOT.map(p=>`<div class="rank-week-row"><span class="rank-week-num">${p.rank}</span><span class="rank-week-name">${esc(p.name)}<small>${esc(p.pos)} · ${esc(p.team)}</small></span><span class="rank-week-proj">${p.proj.toFixed(1)}</span></div>`).join('');
+    $('rankingsView').innerHTML=`<div class="page-head"><div><div class="eyebrow">Player research · full PPR</div><h1>Fantasy rankings</h1><p>See season production, compare players by position and add anyone to your roster.</p></div><span class="ppr-chip">1.0 PPR</span></div>
+      <div class="rank-summary"><div class="overview-card"><div><small>Players tracked</small><strong>${SEASON_PPR_LEADERS.length}</strong></div><div class="overview-icon">♙</div></div><div class="overview-card"><div><small>Scoring format</small><strong>Full PPR</strong></div><div class="overview-icon">★</div></div><div class="overview-card"><div><small>Data snapshot</small><strong>Nov 2</strong></div><div class="overview-icon">↻</div></div></div>
+      <div class="rank-layout"><div class="panel"><div class="panel-head"><h3>2026 season PPR leaders</h3><span id="rankingResultCount">${SEASON_PPR_LEADERS.length} players</span></div>
+        <div class="rank-tools"><input id="rankingSearch" type="search" placeholder="Find a player or team…" autocomplete="off" value="${esc(state.rankingQuery)}"><select id="rankingPosition" class="select" aria-label="Filter rankings by position"><option value="ALL" ${state.rankingPosition==='ALL'?'selected':''}>All positions</option>${['QB','RB','WR','TE'].map(p=>`<option value="${p}" ${state.rankingPosition===p?'selected':''}>${p}</option>`).join('')}</select><select id="rankingSort" class="select" aria-label="Sort rankings"><option value="points" ${state.rankingSort==='points'?'selected':''}>Total PPR</option><option value="ppg" ${state.rankingSort==='ppg'?'selected':''}>PPR per game</option><option value="name" ${state.rankingSort==='name'?'selected':''}>Player name</option></select></div>
+        <div class="rank-table-wrap"><table class="rank-table"><thead><tr><th>Rank</th><th>Player</th><th>Pos</th><th>Total PPR</th><th>Per game</th><th></th></tr></thead><tbody id="rankingsTableBody"></tbody></table></div>
+        <p class="source-note">Historical production, not a forecast. This app includes the top 84 entries from a snapshot retrieved November 2, 2026 and reported through Week 8; Week 9 corrections and later games may not be included. The source page contains the full 481-player dataset. Data: LeagueLogs.</p>
+        <a class="source-link" href="https://leaguelogs.com/guides/nfl-stat-leaders/fantasy-points-ppr" target="_blank" rel="noopener">View full PPR stats source ↗</a>
+      </div>
+      <div><div class="panel"><div class="panel-head"><h3>Week 10 expert snapshot</h3><span>Full PPR · Nov 2</span></div><p class="fantasy-help" style="margin-bottom:10px">A small look-ahead board from the latest weekly rankings snapshot. Projections can change with injuries, lineup news and later updates.</p><div class="rank-week-list">${weeklyRows}</div><a class="source-link" href="https://www.draftsharks.com/weekly-rankings/10/ppr" target="_blank" rel="noopener">Open full Week 10 PPR rankings ↗</a><p class="source-note">Weekly ranking snapshot: Draft Sharks, updated November 2, 2026. The weekly source is separate from the season-points table.</p></div>
+        <div class="panel"><div class="panel-head"><h3>How to use the board</h3><span>Quick guide</span></div><div class="leader-info"><b>Compare total points</b><small>Who has produced the most fantasy points so far.</small></div><div class="leader-info" style="margin-top:12px"><b>Compare points per game</b><small>Useful when players have appeared in different numbers of games.</small></div><div class="leader-info" style="margin-top:12px"><b>Add players to your roster</b><small>Use the Add to roster button. Your roster is saved in this browser.</small></div></div></div></div>`;
+    renderRankingsTable();
+  }
+  async function loadNews() {
+    if(state.newsLoading)return;
+    state.newsLoading=true;state.newsError='';
+    if(!$('newsView').hidden)renderNewsPage();
+    try{
+      const data=await getJSON(NFL_NEWS_API,12000);
+      state.newsItems=(data.articles||data.items||[]).slice(0,16).map(a=>({
+        headline:a.headline||a.title||'NFL update',description:a.description||a.summary||a.story||'',
+        date:a.published||a.lastModified||a.date||'',link:a.links?.web?.href||a.links?.api?.news?.href||a.link||'',
+        image:a.images?.[0]?.url||a.image?.href||a.thumbnail||'',category:a.categories?.[0]?.description||a.categories?.[0]?.text||'NFL news'
+      })).filter(a=>a.headline&&/^https:\/\//i.test(a.link));
+      state.newsLastUpdated=new Date();
+    }catch(error){state.newsError=error.message||'Could not load NFL headlines.';}
+    finally{state.newsLoading=false;if(!$('newsView').hidden)renderNewsPage();}
+  }
+  function renderNewsPage() {
+    const items=state.newsItems||[];
+    const content=items.length?`<div class="news-grid">${items.map(a=>`<a class="news-card" href="${esc(a.link)}" target="_blank" rel="noopener">${a.image?`<img class="news-image" src="${esc(a.image)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\'news-image news-image-fallback\'>NFL</div>'">`:'<div class="news-image news-image-fallback">NFL</div>'}<div class="news-copy"><small>${esc(a.category)}</small><b>${esc(a.headline)}</b>${a.description?`<p>${esc(a.description)}</p>`:''}<span class="news-time">${a.date?esc(fmtDate(a.date,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})):'Latest update'}</span></div></a>`).join('')}</div>`:state.newsLoading?'<div class="empty"><div class="loading"><i class="spinner"></i> Loading the latest NFL headlines…</div></div>':`<div class="empty"><h3>Headlines unavailable</h3><p>${esc(state.newsError||'Try refreshing the news feed.')}</p><button class="retry" id="retryNews">Try again</button></div>`;
+    $('newsView').innerHTML=`<div class="page-head"><div><div class="eyebrow">Around the league</div><h1>NFL news</h1><p>Recent league headlines from ESPN.</p></div><button class="fantasy-btn secondary" id="refreshNews">Refresh news</button></div>${content}<p class="note">Headlines and links are provided by ESPN. ${state.newsLastUpdated?`Last updated ${esc(fmtDate(state.newsLastUpdated,{hour:'numeric',minute:'2-digit'}))}.`:''} Opening a headline takes you to the original publisher.</p>`;
   }
 
   function savePicks() {
@@ -878,7 +1033,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     } finally {state.summaryLoading=false;}
   }
   function setActiveNav(active) {
-    ['nav-scoreboard','nav-fantasy','nav-picks'].forEach(id=>{
+    ['nav-scoreboard','nav-fantasy','nav-picks','nav-rankings','nav-news'].forEach(id=>{
       const button=$(id), selected=id===active;
       button.classList.toggle('active',selected);
       if(selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
@@ -886,22 +1041,31 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   }
   function openGame(id) {
     state.selectedId=id;state.summary=state.gameSummaries[id]||null;
-    $('scoreboardView').hidden=true;$('aboutView').hidden=true;$('fantasyView').hidden=true;$('picksView').hidden=true;$('detailView').hidden=false;
+    $('scoreboardView').hidden=true;$('aboutView').hidden=true;$('fantasyView').hidden=true;$('picksView').hidden=true;$('rankingsView').hidden=true;$('newsView').hidden=true;$('detailView').hidden=false;
     setActiveNav('nav-scoreboard');
     renderDetail();if(!state.summary)loadSummary(id);window.scrollTo({top:0,behavior:'smooth'});
   }
   function showScoreboard() {
-    state.selectedId=null;$('detailView').hidden=true;$('picksView').hidden=true;$('fantasyView').hidden=true;$('aboutView').hidden=true;$('scoreboardView').hidden=false;
+    state.selectedId=null;$('detailView').hidden=true;$('picksView').hidden=true;$('fantasyView').hidden=true;$('rankingsView').hidden=true;$('newsView').hidden=true;$('aboutView').hidden=true;$('scoreboardView').hidden=false;
     setActiveNav('nav-scoreboard');window.scrollTo({top:0,behavior:'smooth'});
   }
   function showPicks() {
-    state.selectedId=null;$('detailView').hidden=true;$('scoreboardView').hidden=true;$('fantasyView').hidden=true;$('aboutView').hidden=true;$('picksView').hidden=false;
+    state.selectedId=null;$('detailView').hidden=true;$('scoreboardView').hidden=true;$('fantasyView').hidden=true;$('rankingsView').hidden=true;$('newsView').hidden=true;$('aboutView').hidden=true;$('picksView').hidden=false;
     setActiveNav('nav-picks');renderPicksPage();window.scrollTo({top:0,behavior:'smooth'});
   }
   function showFantasy() {
-    state.selectedId=null;$('detailView').hidden=true;$('scoreboardView').hidden=true;$('aboutView').hidden=true;$('picksView').hidden=true;$('fantasyView').hidden=false;
+    state.selectedId=null;$('detailView').hidden=true;$('scoreboardView').hidden=true;$('aboutView').hidden=true;$('picksView').hidden=true;$('rankingsView').hidden=true;$('newsView').hidden=true;$('fantasyView').hidden=false;
     setActiveNav('nav-fantasy');renderFantasyPage();window.scrollTo({top:0,behavior:'smooth'});
     loadGameLeaders();
+  }
+  function showRankings() {
+    state.selectedId=null;$('detailView').hidden=true;$('scoreboardView').hidden=true;$('aboutView').hidden=true;$('picksView').hidden=true;$('fantasyView').hidden=true;$('newsView').hidden=true;$('rankingsView').hidden=false;
+    setActiveNav('nav-rankings');renderRankingsPage();window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function showNews() {
+    state.selectedId=null;$('detailView').hidden=true;$('scoreboardView').hidden=true;$('aboutView').hidden=true;$('picksView').hidden=true;$('fantasyView').hidden=true;$('rankingsView').hidden=true;$('newsView').hidden=false;
+    setActiveNav('nav-news');renderNewsPage();window.scrollTo({top:0,behavior:'smooth'});
+    if((!state.newsItems.length || !state.newsLastUpdated || Date.now()-state.newsLastUpdated.getTime()>5*60*1000) && !state.newsLoading) loadNews();
   }
   $('gamesGrid').addEventListener('click',e=>{const card=e.target.closest('[data-game]');if(card)openGame(card.dataset.game);});
   $('gamesGrid').addEventListener('keydown',e=>{const card=e.target.closest('[data-game]');if(card&&(e.key==='Enter'||e.key===' ')){e.preventDefault();openGame(card.dataset.game);}});
@@ -923,7 +1087,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       showSiteToast('Publish this page first, then share its website link with others.');
       return;
     }
-    const shareData={title:'Fourth & Goal — NFL Game Center',text:'Follow NFL scores, track a fantasy roster and keep a personal picks record.',url};
+    const shareData={title:'Fourth & Goal — NFL Game Center',text:'Follow NFL scores, explore PPR rankings and headlines, track a fantasy roster and keep a personal picks record.',url};
     try {
       if(navigator.share) await navigator.share(shareData);
       else if(navigator.clipboard?.writeText) { await navigator.clipboard.writeText(url); showSiteToast('Website link copied. Share it with anyone.'); }
@@ -942,6 +1106,12 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   $('nav-scoreboard').addEventListener('click',showScoreboard);
   $('nav-fantasy').addEventListener('click',showFantasy);
   $('nav-picks').addEventListener('click',showPicks);
+  $('nav-rankings').addEventListener('click',showRankings);
+  $('nav-news').addEventListener('click',showNews);
+  $('rankingsView').addEventListener('input',e=>{if(e.target.id==='rankingSearch'){state.rankingQuery=e.target.value;renderRankingsTable();}});
+  $('rankingsView').addEventListener('change',e=>{if(e.target.id==='rankingPosition'){state.rankingPosition=e.target.value;renderRankingsTable();}if(e.target.id==='rankingSort'){state.rankingSort=e.target.value;renderRankingsTable();}});
+  $('rankingsView').addEventListener('click',e=>{const b=e.target.closest('[data-rank-add]');if(b){addPlayerToRoster(SEASON_PPR_LEADERS[Number(b.dataset.rankAdd)]);return;}if(e.target.closest('#retryNews')||e.target.closest('#refreshNews'))loadNews();});
+  $('newsView').addEventListener('click',e=>{if(e.target.closest('#retryNews')||e.target.closest('#refreshNews'))loadNews();});
   $('refreshBtn').addEventListener('click',()=>{loadScoreboard();loadGameLeaders(true);});
   $('searchInput').addEventListener('input',e=>{state.query=e.target.value.trim().toLowerCase();renderGames();});
   $('sortSelect').addEventListener('change',e=>{state.sort=e.target.value;renderGames();});
@@ -952,14 +1122,21 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   });
   $('fantasyView').addEventListener('click',e=>{
     if(e.target.closest('#useLeagueTeam'))useSelectedLeagueTeam();
-    if(e.target.closest('#clearRoster')){state.fantasy={};state.fantasyDraft.rosterText='';state.fantasyMessage='Roster cleared.';state.fantasyMessageType='';state.fantasyLeagueTeams=[];saveFantasy();renderFantasyPage();}
+    const add=e.target.closest('[data-add-player]');if(add){addPlayerToRoster(SEASON_PPR_LEADERS[Number(add.dataset.addPlayer)]);return;}
+    const remove=e.target.closest('[data-remove-player]');if(remove){const i=Number(remove.dataset.removePlayer);if(Number.isInteger(i)&&state.fantasy.players?.[i]){state.fantasy.players.splice(i,1);state.fantasyDraft.rosterText=state.fantasy.players.map(p=>[p.name,p.position||'',p.teamAbbr||''].filter(Boolean).join(', ')).join('\n');saveFantasy();renderFantasyPage();}return;}
+    if(e.target.closest('#clearRoster')){state.fantasy={};state.fantasyDraft.rosterText='';state.fantasyMessage='Roster cleared.';state.fantasyMessageType='';state.fantasyLeagueTeams=[];saveFantasy();renderFantasyPage();return;}
+    if(e.target.closest('#copyRosterTemplate')){const template='Josh Allen, QB, BUF\nJames Cook, RB, BUF\nCeeDee Lamb, WR, DAL\nTrey McBride, TE, ARI';if(navigator.clipboard?.writeText){navigator.clipboard.writeText(template).then(()=>showSiteToast('Example roster format copied.')).catch(()=>showSiteToast('Copy not available in this browser.'));}else{showSiteToast('Copy not available in this browser.');}}
   });
   $('fantasyView').addEventListener('input',e=>{
     if(e.target.id==='leagueIdInput')state.fantasyDraft.leagueId=e.target.value;
     if(e.target.id==='leagueSeasonInput')state.fantasyDraft.season=e.target.value;
     if(e.target.id==='rosterText')state.fantasyDraft.rosterText=e.target.value;
+    if(e.target.id==='fantasyPlayerSearch'){state.fantasyPlayerQuery=e.target.value;renderFantasyPlayerResults();}
   });
-  $('fantasyView').addEventListener('change',e=>{if(e.target.id==='leagueTeamSelect')state.fantasy.selectedTeamId=e.target.value;});
+  $('fantasyView').addEventListener('change',e=>{
+    if(e.target.id==='leagueTeamSelect')state.fantasy.selectedTeamId=e.target.value;
+    if(e.target.id==='fantasyPlayerPosition'){state.fantasyPlayerPosition=e.target.value;renderFantasyPlayerResults();}
+  });
   loadScoreboard();
   setInterval(loadScoreboard,REFRESH_MS);
 })();
