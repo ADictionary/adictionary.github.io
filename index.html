@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#101820">
+<meta name="theme-color" content="#f3f5f7">
+<script>(function(){var t;try{t=localStorage.getItem("fg-theme")}catch(e){}if(t!=="dark"&&t!=="light")t=window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.dataset.theme=t})();</script>
 <title>Fourth &amp; Goal — NFL Game Center</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -400,6 +401,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
 }
 
 </style>
+  <link rel="stylesheet" href="./theme.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="./config.js"></script>
 </head>
@@ -413,6 +415,10 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       <button class="nav-button active" id="nav-scoreboard" title="Games" aria-label="Games" aria-current="page">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></span>
         <span class="nav-copy"><b>Games</b><small>Live scoreboard</small></span>
+      </button>
+      <button class="nav-button" id="nav-markets" title="Markets" aria-label="Markets">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 8-9"/><path d="M15 5h5v5"/></svg></span>
+        <span class="nav-copy"><b>Markets</b><small>Play-money trading</small></span>
       </button>
       <button class="nav-button" id="nav-fantasy" title="Fantasy" aria-label="Fantasy">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.3 2.3-5 5.5-5s5.1 1.7 5.5 5"/><path d="M16 5.2a3.1 3.1 0 0 1 0 5.8M17 14c2.3.5 3.5 2.1 3.7 4.5"/></svg></span>
@@ -441,6 +447,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     </nav>
     <div class="top-right">
       <div class="data-state"><i class="pulse" id="feedPulse"></i><span id="feedLabel">Connecting to ESPN</span></div>
+      <button class="icon-btn" id="themeBtn" title="Switch theme" aria-label="Switch theme"><svg class="i-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="i-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z"/></svg></button>
       <button class="icon-btn" id="shareBtn" title="Share this site" aria-label="Share this site">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.7 10.7 6.6-4.2M8.7 13.3l6.6 4.2"/></svg>
       </button>
@@ -483,6 +490,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     <p class="note">Scores, game leaders, matchup records and player box scores are retrieved from ESPN’s public feeds and refresh automatically. This is an independent fan-made scoreboard, not affiliated with or endorsed by the NFL or ESPN.</p>
   </section>
   <section id="detailView" hidden></section>
+  <section id="marketsView" hidden></section>
   <section id="picksView" hidden></section>
   <section id="fantasyView" hidden></section>
   <section id="playersView" hidden></section>
@@ -508,7 +516,8 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   const REFRESH_MS = 30000;
   const PICK_STORAGE = 'fourth-goal-picks-v1';
   const FANTASY_STORAGE = 'fourth-goal-fantasy-v1';
-  const PLAYER_POOL_STORAGE = 'fourth-goal-player-pool-v2';
+  const PLAYER_POOL_STORAGE = 'fourth-goal-player-pool-v3';
+  const MIN_PCT_OWNED = 0.1; // players rostered in fewer than this % of ESPN leagues are hidden from player lists
   const PLAYER_POOL_TTL = 6 * 60 * 60 * 1000;
   const TEAM_CATALOG = [
     ['BUF','Buffalo Bills','AFC East'],['MIA','Miami Dolphins','AFC East'],['NE','New England Patriots','AFC East'],['NYJ','New York Jets','AFC East'],
@@ -586,8 +595,12 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     const odds = Array.isArray(comp.odds) ? (comp.odds[0] || {}) : (comp.odds || {});
     const rawTotal = odds.overUnder ?? odds.total ?? null;
     const parsedTotal = rawTotal === null ? NaN : Number.parseFloat(String(rawTotal));
+    // ESPN's odds string looks like "KC -3.5" (favourite and points) or "EVEN". mu = expected home margin.
+    let mu = null;
+    const oddsText = String(odds.details || '').trim(), dm = oddsText.match(/^(\S+)\s+(-\d+(?:\.\d+)?)/);
+    if (dm) { const fav = -Number.parseFloat(dm[2]); mu = dm[1] === homeComp.team?.abbreviation ? fav : -fav; } else if (/^even$/i.test(oddsText)) mu = 0;
     return {
-      id: String(ev.id), date: ev.date, name: ev.name || ev.shortName || 'NFL game', totalLine: Number.isFinite(parsedTotal) ? parsedTotal : null,
+      id: String(ev.id), date: ev.date, name: ev.name || ev.shortName || 'NFL game', totalLine: Number.isFinite(parsedTotal) ? parsedTotal : null, mu, oddsDetail: oddsText,
       shortName: ev.shortName || '', state: type.state || (type.completed ? 'post' : 'pre'),
       completed: !!type.completed, statusDetail: type.shortDetail || type.detail || type.description || 'Scheduled',
       period: number(comp.status?.period), clock: comp.status?.displayClock || '',
@@ -932,7 +945,8 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     const seasonRow=Array.isArray(statRows) ? (statRows.find(x=>Number(x.statSourceId)===0 && Number(x.statSplitTypeId)===0 && Number(x.seasonId||x.externalId||state.season)===Number(state.season||new Date().getFullYear())) || statRows.find(x=>String(x.id||'')===`00${state.season||new Date().getFullYear()}`)) : null;
     const seasonPoints=seasonRow && Number.isFinite(Number(seasonRow.appliedTotal)) ? Number(seasonRow.appliedTotal) : null;
     const gamesPlayed=Number(seasonRow?.appliedStats?.['210'] ?? seasonRow?.appliedStats?.['211'] ?? athlete.gamesPlayed ?? 0) || 0;
-    return {id,name:String(name),position,teamAbbr:normalizeTeamAbbr(team||teamAbbr),headshot:safeHeadshot(image)||(/^\d+$/.test(id)?`https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png`:''),seasonPoints,seasonPpg:seasonPoints!==null&&gamesPlayed>0?seasonPoints/gamesPlayed:null,gamesPlayed,photoType:position==='D/ST'?'team':''};
+    const owned=Number(athlete.ownership?.percentOwned ?? raw?.ownership?.percentOwned ?? raw?.playerPoolEntry?.ownership?.percentOwned);
+    return {id,name:String(name),position,pctOwned:Number.isFinite(owned)?owned:null,teamAbbr:normalizeTeamAbbr(team||teamAbbr),headshot:safeHeadshot(image)||(/^\d+$/.test(id)?`https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png`:''),seasonPoints,seasonPpg:seasonPoints!==null&&gamesPlayed>0?seasonPoints/gamesPlayed:null,gamesPlayed,photoType:position==='D/ST'?'team':''};
   }
   function collectRosterPlayers(node, teamAbbr, inheritedPosition='', out=[]) {
     if(Array.isArray(node)){node.forEach(item=>collectRosterPlayers(item,teamAbbr,inheritedPosition,out));return out;}
@@ -1029,7 +1043,10 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       if(success)source=source?`${source} + team roster supplement`:'ESPN NFL team rosters';
       else if(!all.size)state.nflPlayerPoolError='ESPN player feeds could not be reached. Try again, or add a player from the roster manually.';
     }
-    const pool=[...all.values()];
+    let pool=[...all.values()];
+    // Drop players nobody rosters. Only applies when ESPN actually supplied ownership data, so a failed
+    // fantasy feed (roster-only fallback) never empties the list. Team defenses always stay.
+    if(pool.some(p=>p.pctOwned>0))pool=pool.filter(p=>p.position==='D/ST'||p.pctOwned>=MIN_PCT_OWNED);
     // Always include every franchise's team defense and kicker slot in the player directory.
     TEAM_CATALOG.forEach(team=>{
       if(!pool.some(p=>p.position==='D/ST'&&p.teamAbbr===team.abbr))pool.push({id:`DST:${team.abbr}`,name:`${team.name} D/ST`,position:'D/ST',teamAbbr:team.abbr,headshot:team.logo,photoType:'team',seasonPoints:null,seasonPpg:null});
@@ -1910,7 +1927,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     } finally {state.summaryLoading=false;}
   }
   function hideAllViews() {
-    ['scoreboardView','detailView','picksView','fantasyView','playersView','standingsView','communityView','newsView','aboutView'].forEach(id=>{const el=$(id);if(el)el.hidden=true;});
+    ['scoreboardView','detailView','marketsView','picksView','fantasyView','playersView','standingsView','communityView','newsView','aboutView'].forEach(id=>{const el=$(id);if(el)el.hidden=true;});
   }
   function showStandings() {
     state.selectedId=null;hideAllViews();$('standingsView').hidden=false;setActiveNav('nav-standings');renderStandingsPage();window.scrollTo({top:0,behavior:'smooth'});loadStandings();
@@ -1924,7 +1941,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     if((!state.newsItems.length || !state.newsLastUpdated || Date.now()-state.newsLastUpdated.getTime()>5*60*1000) && !state.newsLoading) loadNews();
   }
   function setActiveNav(active) {
-    ['nav-scoreboard','nav-fantasy','nav-picks','nav-players','nav-standings','nav-community','nav-news'].forEach(id=>{
+    ['nav-scoreboard','nav-markets','nav-fantasy','nav-picks','nav-players','nav-standings','nav-community','nav-news'].forEach(id=>{
       const button=$(id), selected=id===active;
       button.classList.toggle('active',selected);
       if(selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
@@ -1936,6 +1953,9 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   }
   function showScoreboard() {
     state.selectedId=null;hideAllViews();$('scoreboardView').hidden=false;setActiveNav('nav-scoreboard');window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function showMarkets() {
+    state.selectedId=null;hideAllViews();$('marketsView').hidden=false;setActiveNav('nav-markets');if(window.FG&&FG.marketsRender)FG.marketsRender();window.scrollTo({top:0,behavior:'smooth'});
   }
   function showPicks() {
     state.selectedId=null;hideAllViews();$('picksView').hidden=false;setActiveNav('nav-picks');renderPicksPage();window.scrollTo({top:0,behavior:'smooth'});
@@ -1983,6 +2003,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   }
   $('shareBtn').addEventListener('click',shareSite);
   $('nav-scoreboard').addEventListener('click',showScoreboard);
+  $('nav-markets').addEventListener('click',showMarkets);
   $('nav-fantasy').addEventListener('click',showFantasy);
   $('nav-picks').addEventListener('click',showPicks);
   $('nav-players').addEventListener('click',showPlayers);
@@ -2050,9 +2071,12 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   });
   if(state.community.user)upsertCommunityProfile().then(loadCommunityLeagues).catch(()=>{});
   initCommunity().then(()=>{if(!$('communityView').hidden)renderCommunityPage();});
+  window.FG={state,$,fmtDate,toast:showSiteToast};
   loadScoreboard();
   setInterval(loadScoreboard,REFRESH_MS);
 })();
 </script>
+<script src="./markets.js"></script>
+<script>(function(){var b=document.getElementById('themeBtn');if(!b)return;function apply(t,keep){document.documentElement.dataset.theme=t;if(keep){try{localStorage.setItem('fg-theme',t)}catch(e){}}var m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='dark'?'#0c1116':'#f3f5f7';var l=t==='dark'?'Switch to light mode':'Switch to dark mode';b.setAttribute('aria-label',l);b.title=l}apply(document.documentElement.dataset.theme||'light',false);b.addEventListener('click',function(){apply(document.documentElement.dataset.theme==='dark'?'light':'dark',true)})})();</script>
 </body>
 </html>
