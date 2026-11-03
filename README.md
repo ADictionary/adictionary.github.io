@@ -41,3 +41,15 @@ Everything is stored in the visitor's browser (localStorage): fantasy roster, ea
 - Player lists hide players rostered in under 0.1% of ESPN fantasy leagues (`MIN_PCT_OWNED` in `index.html`).
 
 This is an independent fan project, not affiliated with ESPN or the NFL.
+
+## Past-game retention (current behaviour)
+
+The scoreboard refreshes the current ESPN scoreboard feed every 30 seconds. Each successful response replaces the in-memory `state.games` list with the games returned by ESPN. When ESPN advances the feed to a new week, the previous week's games therefore stop appearing in the Games tab. The app does **not** currently maintain a complete season archive.
+
+Some related records do persist locally:
+
+- **Free picks:** `fourth-goal-picks-v1` stores picks in browser localStorage, including the game names/date and final result once ESPN marks a picked game final. This preserves the pick record, not a complete historical box score.
+- **Markets positions:** `fourth-goal-markets-v1` stores positions and `gs` game snapshots for games attached to those positions. It is not an archive of every NFL game. The win-probability cache used for charts is in memory and is not a durable historical series.
+- **Fantasy roster:** `fourth-goal-fantasy-v1` stores the local roster. Current-week player scoring is refreshed from ESPN; it is not a complete season-long game archive.
+
+To build a proper historical Game Center, add an archive keyed by ESPN event ID and season/week. Save the final event metadata, quarter scores, box score/player statistics and (if available) the full win-probability series. IndexedDB would support a per-browser archive; Supabase or another backend would be needed for a shared archive across visitors. The current build does not silently claim that this archive exists.

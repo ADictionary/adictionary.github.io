@@ -608,10 +608,10 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   }
   function card(g) {
     const scoreVisible = isLive(g) || isFinal(g);
-    const teamLine = t => `<div class="team-line"><div class="team-main">${teamLogo(t)}<div style="min-width:0"><div class="team-name">${esc(t.name)}</div><span class="team-record">${t.record ? esc(t.record) : (t===g.home?'Home':'Away')}</span></div></div><div class="team-score ${scoreVisible?'':'dim'}">${scoreVisible?t.score:'—'}</div></div>`;
-    return `<article class="game-card" tabindex="0" role="button" data-game="${esc(g.id)}" aria-label="View ${esc(g.name)} details">
+    const teamLine = (t, side) => `<div class="team-line" data-team-side="${side}" style="--team-accent:${t.color}"><div class="team-main">${teamLogo(t)}<div style="min-width:0"><div class="team-name">${esc(t.name)}</div><span class="team-record">${t.record ? esc(t.record) : (t===g.home?'Home':'Away')}</span></div></div><div class="team-score ${scoreVisible?'':'dim'}">${scoreVisible?t.score:'—'}</div></div>`;
+    return `<article class="game-card" style="--away-accent:${g.away.color};--home-accent:${g.home.color}" tabindex="0" role="button" data-game="${esc(g.id)}" aria-label="View ${esc(g.name)} details">
       <div class="game-meta">${statusMarkup(g)}<span class="game-venue">${esc(g.venue || (g.week ? `Week ${g.week}` : 'NFL'))}</span></div>
-      ${teamLine(g.away)}${teamLine(g.home)}
+      ${teamLine(g.away,'away')}${teamLine(g.home,'home')}
       ${window.FG&&FG.mk?FG.mk.cardRow(g):''}
       ${gameLeaderStrip(g)}
       <div class="card-footer"><span>${esc(g.broadcast || g.shortName || 'Game details')}</span><span class="card-link">Game details <span aria-hidden="true">↗</span></span></div>
@@ -714,7 +714,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   function scoreTable(g) {
     const max = Math.max(g.home.lines.length,g.away.lines.length,4);
     const headers = Array.from({length:max},(_,i)=>`<th>${i<4?'Q'+(i+1):'OT'+(i-3)}</th>`).join('');
-    const row = t => `<tr><td><span class="quarter-team">${teamLogo(t,'mini-logo')} ${esc(t.abbr)}</span></td>${Array.from({length:max},(_,i)=>`<td>${t.lines[i] ?? '—'}</td>`).join('')}<td class="total">${t.score}</td></tr>`;
+    const row = t => `<tr style="--team-accent:${t.color}"><td><span class="quarter-team">${teamLogo(t,'mini-logo')} ${esc(t.abbr)}</span></td>${Array.from({length:max},(_,i)=>`<td>${t.lines[i] ?? '—'}</td>`).join('')}<td class="total">${t.score}</td></tr>`;
     return `<div class="panel"><div class="panel-head"><h3>Score by quarter</h3><span>Official score</span></div><div style="overflow-x:auto"><table class="quarter-table"><thead><tr><th>Team</th>${headers}<th>Final</th></tr></thead><tbody>${row(g.away)}${row(g.home)}</tbody></table></div></div>`;
   }
   function scoringChart(g, plays) {
@@ -1956,8 +1956,8 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     const summary=state.summary;
     const score = t => (isLive(g)||isFinal(g)) ? t.score : '—';
     $('detailView').innerHTML=`<button class="back" id="detailBack">← All games</button>
-      <div class="detail-hero"><div class="detail-meta"><span>${statusMarkup(g)}</span><span>${esc(g.venue || (g.week?`Week ${g.week}`:'NFL'))}</span></div>
-        <div class="detail-teams"><div class="detail-team">${teamLogo(g.away,'')}<h2>${esc(g.away.name)}</h2><p>${esc(g.away.record||'Away')}</p><div class="detail-score">${score(g.away)}</div></div><div class="detail-team">${teamLogo(g.home,'')}<h2>${esc(g.home.name)}</h2><p>${esc(g.home.record||'Home')}</p><div class="detail-score">${score(g.home)}</div></div></div>
+      <div class="detail-hero" style="--away-accent:${g.away.color};--home-accent:${g.home.color}"><div class="detail-meta"><span>${statusMarkup(g)}</span><span>${esc(g.venue || (g.week?`Week ${g.week}`:'NFL'))}</span></div>
+        <div class="detail-teams"><div class="detail-team" style="--team-accent:${g.away.color}">${teamLogo(g.away,'')}<h2>${esc(g.away.name)}</h2><p>${esc(g.away.record||'Away')}</p><div class="detail-score">${score(g.away)}</div></div><div class="detail-team" style="--team-accent:${g.home.color}">${teamLogo(g.home,'')}<h2>${esc(g.home.name)}</h2><p>${esc(g.home.record||'Home')}</p><div class="detail-score">${score(g.home)}</div></div></div>
       </div>
       ${window.FG&&FG.mk?FG.mk.detail(g):''}
       <div class="detail-layout"><div>
