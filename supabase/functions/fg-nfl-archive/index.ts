@@ -131,8 +131,58 @@ async function runLog(row: Json) {
 async function getExisting(eventIds: string[]) {
   if (!eventIds.length) return new Map<string, Json>();
   const inFilter = eventIds.map(id => encodeURIComponent(id)).join(',');
-  const rows = await restRequest(`fg_nfl_game_archive?select=event_id,summary_json,boxscore_json,player_stats_json,scoring_plays_json,summary_synced_at,summary_attempted_at&event_id=in.(${inFilter})`);
+  // Only retrieve the small scheduling metadata needed to decide whether a summary
+  // should be refreshed. Fetching every existing multi-megabyte JSON summary just
+  // to preserve it was an expensive read and could itself hit Supabase statement timeouts.
+  const rows = await restRequest(`fg_nfl_game_archive?select=event_id,summary_synced_at,summary_attempted_at&event_id=in.(${inFilter})`);
   return new Map<string, Json>((rows || []).map((row: Json) => [String(row.event_id), row]));
+}
+
+async function upsertGameRows(rows: Json[], initialChunkSize = 4) {
+  // Small batches avoid sending a whole week's event payloads in one large Postgres
+  // statement. If a batch still hits a statement timeout, split it and retry the
+  // smaller halves. A single-row failure is surfaced rather than hidden.
+  const saveBatch = async (batch: Json[]): Promise<void> => {
+    if (!batch.length) return;
+    try {
+      await restRequest('fg_nfl_game_archive?on_conflict=event_id', {
+        method: 'POST',
+        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(batch),
+      });
+    } catch (error) {
+      const message = String(error instanceof Error ? error.message : error);
+      const looksLikeTimeout = /57014|statement timeout|HTTP 500|HTTP 502|HTTP 503|HTTP 504/i.test(message);
+      if (batch.length > 1 && looksLikeTimeout) {
+        const middle = Math.ceil(batch.length / 2);
+        console.warn(`[fg-nfl-archive] Batch of ${batch.length} rows timed out; retrying as ${middle} + ${batch.length - middle}.`);
+        await saveBatch(batch.slice(0, middle));
+        await saveBatch(batch.slice(middle));
+        return;
+      }
+      const ids = batch.map(row => row.event_id).join(', ');
+      throw new Error(`Could not save archive game batch [${ids}]: ${message}`);
+    }
+  };
+
+  for (let offset = 0; offset < rows.length; offset += initialChunkSize) {
+    await saveBatch(rows.slice(offset, offset + initialChunkSize));
+  }
+}
+
+async function upsertSummary(eventId: string, summary: Json) {
+  // The complete ESPN summary already contains its box score, player statistics
+  // and scoring plays. Store it once rather than duplicating those large JSON
+  // objects into three additional columns for every game.
+  await restRequest('fg_nfl_game_archive?on_conflict=event_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify({
+      event_id: eventId,
+      summary_json: cleanSummary(summary),
+      summary_synced_at: new Date().toISOString(),
+    }),
+  });
 }
 
 async function syncWeek(season: number, week: number, seasonType: number, action: string) {
@@ -153,10 +203,10 @@ async function syncWeek(season: number, week: number, seasonType: number, action
     const ids = events.map(event => String(event.id)).filter(Boolean);
     const existing = await getExisting(ids);
     const summaries = new Map<string, Json>();
-    const summaryFetched = new Set<string>();
     const summaryAttempted = new Set<string>();
     let cursor = 0;
-    const workers = Array.from({ length: 4 }, async () => {
+    // Keep upstream concurrency modest during a full-week backfill.
+    const workers = Array.from({ length: 2 }, async () => {
       while (cursor < events.length) {
         const event = events[cursor++];
         const id = String(event.id || '');
@@ -167,25 +217,26 @@ async function syncWeek(season: number, week: number, seasonType: number, action
         const lastAttempt = lastAttemptValue ? new Date(lastAttemptValue).getTime() : 0;
         const age = Date.now() - lastAttempt;
         const refreshEvery = status.state === 'in' ? 8 * 60 * 1000 : status.completed ? 24 * 60 * 60 * 1000 : 6 * 60 * 60 * 1000;
-        const needsSummary = !lastAttempt || age > refreshEvery;
-        if (!needsSummary) {
-          summaries.set(id, old?.summary_json || null);
-          continue;
-        }
+        // If no summary has ever been saved (for example, a previous database
+        // write timed out), retry it sooner than the normal final-game refresh.
+        const retryWithoutSummary = status.state === 'in' ? 8 * 60 * 1000 : status.completed ? 60 * 60 * 1000 : 6 * 60 * 60 * 1000;
+        const hasSavedSummary = Boolean(old?.summary_synced_at);
+        const needsSummary = hasSavedSummary
+          ? (!lastAttempt || age > refreshEvery)
+          : (!lastAttempt || age > retryWithoutSummary);
+        if (!needsSummary) continue;
         summaryAttempted.add(id);
         try {
           const summary = await fetchJson(`${ESPN_SUMMARY}?event=${encodeURIComponent(id)}`, 22000);
           summaries.set(id, summary);
-          summaryFetched.add(id);
-          summariesSaved++;
         } catch (error) {
           failureCount++;
           console.warn(`[fg-nfl-archive] Summary unavailable for ${id}:`, error);
-          summaries.set(id, old?.summary_json || null);
         }
       }
     });
     await Promise.all(workers);
+    const syncedAt = new Date().toISOString();
 
     const rows = events.map(event => {
       const id = String(event.id || '');
@@ -193,9 +244,7 @@ async function syncWeek(season: number, week: number, seasonType: number, action
       const away = teamFor(event, 'away');
       const home = teamFor(event, 'home');
       const status = gameState(event);
-      const summary = summaries.get(id) || null;
       const old = existing.get(id) || {};
-      const cleanSummaryPayload = cleanSummary(summary);
       return {
         event_id: id,
         season: asInt(event.season?.year) || season,
@@ -211,27 +260,36 @@ async function syncWeek(season: number, week: number, seasonType: number, action
         venue: competition.venue || null,
         broadcasts: competition.broadcasts || [],
         event_json: cleanEvent(event),
-        summary_json: cleanSummaryPayload || old.summary_json || null,
-        boxscore_json: cleanSummaryPayload?.boxscore || old.boxscore_json || null,
-        player_stats_json: cleanSummaryPayload?.boxscore?.players || old.player_stats_json || null,
-        scoring_plays_json: Array.isArray(cleanSummaryPayload?.scoringPlays) && cleanSummaryPayload.scoringPlays.length ? cleanSummaryPayload.scoringPlays : (old.scoring_plays_json || []),
-        synced_at: new Date().toISOString(),
-        summary_synced_at: summaryFetched.has(id) ? new Date().toISOString() : (old.summary_synced_at || null),
-        summary_attempted_at: summaryAttempted.has(id) ? new Date().toISOString() : (old.summary_attempted_at || old.summary_synced_at || null),
+        synced_at: syncedAt,
+        // Do not send large summary columns with the main game rows. Summary data
+        // is saved separately, one game at a time, after the compact game upsert.
+        ...(summaryAttempted.has(id) ? { summary_attempted_at: syncedAt } : {}),
       };
     }).filter(row => row.event_id);
 
     if (rows.length) {
-      await restRequest('fg_nfl_game_archive?on_conflict=event_id', {
-        method: 'POST',
-        headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-        body: JSON.stringify(rows),
-      });
+      await upsertGameRows(rows, 4);
       saved = rows.length;
     }
+
+    // Save each full ESPN summary separately. This avoids one oversized weekly
+    // statement and avoids tripling the same box-score/player/scoring-play JSON.
+    for (const [eventId, summary] of summaries.entries()) {
+      try {
+        await upsertSummary(eventId, summary);
+        summariesSaved++;
+      } catch (error) {
+        failureCount++;
+        console.warn(`[fg-nfl-archive] Could not save summary for ${eventId}:`, error);
+      }
+    }
+
     const status = failureCount ? 'partial' : 'success';
-    await runLog({ season, season_type: seasonType, week, action, status, games_found: events.length, games_saved: saved, summaries_saved: summariesSaved, message: failureCount ? `${failureCount} summary request(s) failed; prior archived data was retained where available.` : 'Week archive updated successfully.', started_at: startedAt, completed_at: new Date().toISOString() });
-    return { season, seasonType, week, gamesFound: events.length, gamesSaved: saved, summariesSaved, partial: failureCount > 0 };
+    const message = failureCount
+      ? `${failureCount} summary fetch/write operation(s) did not complete. Game records were saved; summaries will be retried on a later sync.`
+      : 'Week archive updated successfully.';
+    await runLog({ season, season_type: seasonType, week, action, status, games_found: events.length, games_saved: saved, summaries_saved: summariesSaved, message, started_at: startedAt, completed_at: new Date().toISOString() });
+    return { season, seasonType, week, gamesFound: events.length, gamesSaved: saved, summariesSaved, partial: failureCount > 0, message };
   } catch (error) {
     await runLog({ season, season_type: seasonType, week, action, status: 'failed', games_found: events.length, games_saved: saved, summaries_saved: summariesSaved, message: String(error instanceof Error ? error.message : error).slice(0, 1000), started_at: startedAt, completed_at: new Date().toISOString() });
     throw error;
