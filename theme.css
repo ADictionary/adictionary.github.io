@@ -251,3 +251,48 @@ html[data-theme="dark"] .i-moon,html:not([data-theme="dark"]) .i-sun{display:non
 .quarter-table tbody tr:hover{background:color-mix(in srgb,var(--team-accent,#526575) 8%,transparent)}
 .quarter-team{border-left:2px solid var(--team-accent,#526575);padding-left:6px}
 @media(prefers-reduced-motion:reduce){.game-card,.team-line,.quarter-table tbody tr{transition:none}.game-card:hover{transform:none}}
+
+/* ---------- NFL season archive ---------- */
+.archive-page-head{align-items:flex-end}
+.archive-status-panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 15px;margin:0 0 14px}
+.archive-status-top{display:flex;align-items:center;gap:9px;font-size:12px;flex-wrap:wrap}
+.archive-status-top b{font-weight:800}
+.archive-status-dot{width:8px;height:8px;border-radius:50%;background:var(--amber);box-shadow:0 0 0 4px color-mix(in srgb,var(--amber) 12%,transparent);flex:none}
+.archive-status-dot.connected{background:var(--green);box-shadow:0 0 0 4px color-mix(in srgb,var(--green) 12%,transparent)}
+.archive-storage-note{color:var(--muted);font-size:10px;margin-left:auto}
+.archive-status-panel p{color:var(--muted);font-size:11px;margin:7px 0 0;line-height:1.5}
+.archive-controls{display:grid;grid-template-columns:145px 145px minmax(190px,1fr);gap:9px;margin:0 0 14px}
+.archive-controls label{display:flex;flex-direction:column;gap:5px;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em}
+.archive-controls select,.archive-controls input{width:100%;height:39px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);padding:0 11px;font:600 12px "DM Sans",sans-serif;text-transform:none;letter-spacing:normal}
+.archive-controls input::placeholder{color:var(--muted);font-weight:500}
+.archive-results-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin:17px 0 9px}
+.archive-results-head b{font:700 14px "Space Grotesk",sans-serif}
+.archive-results-head span{color:var(--muted);font-size:10px;text-align:right}
+.archive-game-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.archive-game-card{min-width:0;background:var(--surface);border:1px solid var(--line);border-radius:13px;padding:12px 14px;transition:border-color .15s,transform .15s}
+.archive-game-card:hover{border-color:var(--line-2);transform:translateY(-1px)}
+.archive-game-meta{display:flex;align-items:center;justify-content:space-between;gap:9px;color:var(--muted);font-size:10px;font-weight:700;margin-bottom:8px}
+.archive-status{border-radius:99px;padding:3px 7px;background:var(--surface-2);font-size:9px;letter-spacing:.06em}
+.archive-status.is-final{color:var(--green);background:var(--green-dim)}
+.archive-match-row{display:grid;grid-template-columns:minmax(0,1fr) 32px;align-items:center;gap:10px;padding:5px 0}
+.archive-match-row+.archive-match-row{border-top:1px solid var(--line)}
+.archive-team-block{display:flex;align-items:center;gap:9px;min-width:0}
+.archive-team-block>span:last-child{display:flex;flex-direction:column;min-width:0}
+.archive-team-block b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.archive-team-block small{font-size:9px;color:var(--muted);margin-top:1px}
+.archive-team-logo,.archive-team-fallback{width:27px;height:27px;object-fit:contain;flex:none}
+.archive-team-fallback{display:grid;place-items:center;border-radius:50%;background:var(--surface-3);font-size:8px;font-weight:800;color:var(--muted)}
+.archive-match-row>strong{font:700 20px "Space Grotesk",sans-serif;text-align:right;font-variant-numeric:tabular-nums}
+.archive-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:9px;margin-top:7px;border-top:1px solid var(--line);color:var(--muted);font-size:9px}
+.archive-open{border:0;background:transparent;color:var(--green);font-size:10px;font-weight:800;padding:3px 0;white-space:nowrap}
+.archive-open:hover{text-decoration:underline;text-underline-offset:3px}
+.archive-empty{grid-column:1/-1}
+#nav-archive .nav-icon svg{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:760px){.archive-game-grid{grid-template-columns:1fr}.archive-storage-note{width:100%;margin-left:17px}.archive-results-head{align-items:flex-start;flex-direction:column}.archive-results-head span{text-align:left}}
+@media(max-width:520px){.archive-controls{grid-template-columns:1fr 1fr}.archive-controls .archive-search{grid-column:1/-1}.archive-page-head{align-items:flex-start;flex-direction:column}.archive-page-head #archiveRefresh{width:100%}}
+.archive-head-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+@media(max-width:520px){.archive-head-actions{width:100%}.archive-head-actions button{flex:1}}
+/* Archive filters: season, type, week and team search. */
+.archive-controls{grid-template-columns:130px 160px 130px minmax(190px,1fr)}
+@media(max-width:760px){.archive-controls{grid-template-columns:1fr 1fr}.archive-controls .archive-search{grid-column:1/-1}}
+@media(max-width:520px){.archive-controls{grid-template-columns:1fr 1fr}.archive-controls .archive-search{grid-column:1/-1}}
