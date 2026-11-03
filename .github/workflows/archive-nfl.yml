@@ -1,0 +1,114 @@
+name: Archive NFL games
+
+on:
+  schedule:
+    # GitHub Actions may start scheduled jobs a few minutes after their target time.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Sync the current week or backfill a range of weeks'
+        type: choice
+        required: true
+        default: current
+        options:
+          - current
+          - backfill
+      season:
+        description: 'NFL season year (for backfill)'
+        type: string
+        required: false
+        default: '2026'
+      season_type:
+        description: '1 = preseason, 2 = regular season, 3 = postseason'
+        type: choice
+        required: false
+        default: '2'
+        options:
+          - '1'
+          - '2'
+          - '3'
+      start_week:
+        description: 'First week to backfill'
+        type: string
+        required: false
+        default: '1'
+      end_week:
+        description: 'Last week to backfill'
+        type: string
+        required: false
+        default: '18'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fourth-goal-nfl-archive
+  cancel-in-progress: false
+
+jobs:
+  archive-current-week:
+    if: github.event_name == 'schedule' || inputs.mode == 'current'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync current ESPN NFL week
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          FG_ARCHIVE_SECRET: ${{ secrets.FG_ARCHIVE_SECRET }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$SUPABASE_URL" || (echo "Missing GitHub secret SUPABASE_URL" && exit 1)
+          test -n "$FG_ARCHIVE_SECRET" || (echo "Missing GitHub secret FG_ARCHIVE_SECRET" && exit 1)
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || (echo "Missing GitHub secret SUPABASE_PUBLISHABLE_KEY" && exit 1)
+          curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 \
+            -X POST "${SUPABASE_URL%/}/functions/v1/fg-nfl-archive" \
+            -H 'Content-Type: application/json' \
+            -H "apikey: ${SUPABASE_PUBLISHABLE_KEY}" \
+            -H "x-fg-archive-secret: ${FG_ARCHIVE_SECRET}" \
+            --data '{"action":"sync-current"}'
+
+  backfill-selected-weeks:
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'backfill'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate backfill range
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          FG_ARCHIVE_SECRET: ${{ secrets.FG_ARCHIVE_SECRET }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SEASON: ${{ inputs.season }}
+          SEASON_TYPE: ${{ inputs.season_type }}
+          START_WEEK: ${{ inputs.start_week }}
+          END_WEEK: ${{ inputs.end_week }}
+        run: |
+          set -euo pipefail
+          [[ "$SEASON" =~ ^[0-9]{4}$ ]] || (echo "Season must be a four-digit year" && exit 1)
+          [[ "$START_WEEK" =~ ^[0-9]{1,2}$ ]] || (echo "Invalid start week" && exit 1)
+          [[ "$END_WEEK" =~ ^[0-9]{1,2}$ ]] || (echo "Invalid end week" && exit 1)
+          (( START_WEEK >= 1 && END_WEEK <= 25 && START_WEEK <= END_WEEK )) || (echo "Week range must be between 1 and 25" && exit 1)
+          test -n "$SUPABASE_URL" || (echo "Missing GitHub secret SUPABASE_URL" && exit 1)
+          test -n "$FG_ARCHIVE_SECRET" || (echo "Missing GitHub secret FG_ARCHIVE_SECRET" && exit 1)
+          test -n "$SUPABASE_PUBLISHABLE_KEY" || (echo "Missing GitHub secret SUPABASE_PUBLISHABLE_KEY" && exit 1)
+      - name: Backfill weeks from ESPN
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          FG_ARCHIVE_SECRET: ${{ secrets.FG_ARCHIVE_SECRET }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SEASON: ${{ inputs.season }}
+          SEASON_TYPE: ${{ inputs.season_type }}
+          START_WEEK: ${{ inputs.start_week }}
+          END_WEEK: ${{ inputs.end_week }}
+        run: |
+          set -euo pipefail
+          for week in $(seq "$START_WEEK" "$END_WEEK"); do
+            echo "Archiving season $SEASON, type $SEASON_TYPE, week $week"
+            curl --fail-with-body --silent --show-error --retry 3 --retry-delay 5 \
+              -X POST "${SUPABASE_URL%/}/functions/v1/fg-nfl-archive" \
+              -H 'Content-Type: application/json' \
+              -H "apikey: ${SUPABASE_PUBLISHABLE_KEY}" \
+              -H "x-fg-archive-secret: ${FG_ARCHIVE_SECRET}" \
+              --data "{\"action\":\"sync-week\",\"season\":${SEASON},\"season_type\":${SEASON_TYPE},\"week\":${week}}"
+            echo
+            sleep 2
+          done
