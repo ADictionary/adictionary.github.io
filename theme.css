@@ -191,3 +191,63 @@ html[data-theme="dark"] .i-moon,html:not([data-theme="dark"]) .i-sun{display:non
 @media(max-width:560px){.fx-sheet{place-items:end center}.fx-sheet-box{border-radius:18px 18px 0 0;width:100vw;max-height:86vh}.fx-slot{grid-template-columns:44px minmax(0,1fr)}.fx-who small{font-size:10.5px}}
 .mk-chart{width:100%;height:210px;display:block;margin-top:10px}.mk-chart *{vector-effect:non-scaling-stroke}
 @media(max-width:560px){.mk-chart{height:160px}}
+
+
+/* ---------- Team-aware game presentation (non-market UI only) ----------
+   Team accent values are supplied by ESPN's team.color field in index.html.
+   markets.js is intentionally separate and remains unchanged. */
+.game-card{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  border-color:color-mix(in srgb,var(--away-accent,#526575) 24%,var(--line));
+  background:linear-gradient(112deg,
+    color-mix(in srgb,var(--away-accent,#526575) 6%,var(--surface)),
+    var(--surface) 48%,
+    color-mix(in srgb,var(--home-accent,#526575) 6%,var(--surface)));
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.game-card::before{
+  content:"";position:absolute;inset:0 0 auto;height:3px;
+  background:linear-gradient(90deg,var(--away-accent,#526575) 0 50%,var(--home-accent,#526575) 50% 100%);
+  pointer-events:none;
+}
+.game-card:hover{
+  transform:translateY(-2px);
+  border-color:color-mix(in srgb,var(--away-accent,#526575) 42%,var(--home-accent,#526575));
+}
+.game-card:focus-visible{outline:2px solid color-mix(in srgb,var(--away-accent,#526575) 55%,var(--home-accent,#526575));outline-offset:3px}
+.team-line{
+  position:relative;
+  margin:3px 0;
+  padding:8px 9px;
+  border-left:3px solid var(--team-accent,#526575);
+  border-radius:9px;
+  background:linear-gradient(90deg,color-mix(in srgb,var(--team-accent,#526575) 10%,transparent),transparent 76%);
+  transition:background .15s ease;
+}
+.team-line+.team-line{border-top:0}
+.team-line:hover{background:linear-gradient(90deg,color-mix(in srgb,var(--team-accent,#526575) 16%,transparent),transparent 82%)}
+.team-line .team-score:not(.dim){color:var(--team-accent,#526575)}
+.detail-hero{
+  position:relative;
+  overflow:hidden;
+  background:
+    radial-gradient(ellipse at 8% 0%,color-mix(in srgb,var(--away-accent,#526575) 18%,transparent),transparent 48%),
+    radial-gradient(ellipse at 92% 0%,color-mix(in srgb,var(--home-accent,#526575) 18%,transparent),transparent 48%),
+    linear-gradient(145deg,var(--surface),var(--surface-2));
+  border-color:color-mix(in srgb,var(--away-accent,#526575) 30%,var(--home-accent,#526575));
+}
+.detail-team{
+  position:relative;
+  padding:14px 10px 11px;
+  border:1px solid color-mix(in srgb,var(--team-accent,#526575) 30%,var(--line));
+  border-radius:15px;
+  background:linear-gradient(180deg,color-mix(in srgb,var(--team-accent,#526575) 11%,transparent),transparent 82%);
+}
+.detail-team h2{color:var(--team-accent,var(--text))}
+.detail-score{color:var(--team-accent,var(--text));text-shadow:0 5px 22px color-mix(in srgb,var(--team-accent,#526575) 24%,transparent)}
+.quarter-table tbody tr{transition:background .15s ease}
+.quarter-table tbody tr:hover{background:color-mix(in srgb,var(--team-accent,#526575) 8%,transparent)}
+.quarter-team{border-left:2px solid var(--team-accent,#526575);padding-left:6px}
+@media(prefers-reduced-motion:reduce){.game-card,.team-line,.quarter-table tbody tr{transition:none}.game-card:hover{transform:none}}
