@@ -363,7 +363,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
 .quick-result,.player-result{border-radius:11px}
 .fantasy-avatar{background:#192b36}
 .fantasy-avatar-fallback{background:#192b36}
-
+.fantasy-avatar-fallback img{width:100%;height:100%;object-fit:contain;padding:3px}
 .division-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .division-card{padding:14px}
 .division-head h3{font-size:17px}
@@ -414,9 +414,9 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/></svg></span>
         <span class="nav-copy"><b>Games</b><small>Live scoreboard</small></span>
       </button>
-      <button class="nav-button" id="nav-picks" title="My Picks" aria-label="My Picks">
-        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="m8 12 2.5 2.5L16 9"/></svg></span>
-        <span class="nav-copy"><b>My Picks</b><small>Predictions &amp; record</small></span>
+      <button class="nav-button" id="nav-portfolio" title="Portfolio" aria-label="Portfolio">
+        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 8-9"/><path d="M15 5h5v5"/></svg></span>
+        <span class="nav-copy"><b>Portfolio</b><small>Positions &amp; results</small></span>
       </button>
       <button class="nav-button" id="nav-fantasy" title="Fantasy" aria-label="Fantasy">
         <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.4-3.3 2.3-5 5.5-5s5.1 1.7 5.5 5"/><path d="M16 5.2a3.1 3.1 0 0 1 0 5.8M17 14c2.3.5 3.5 2.1 3.7 4.5"/></svg></span>
@@ -477,6 +477,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     <p class="note">Scores, game leaders, matchup records and player box scores are retrieved from ESPN’s public feeds and refresh automatically. This is an independent fan-made scoreboard, not affiliated with or endorsed by the NFL or ESPN.</p>
   </section>
   <section id="detailView" hidden></section>
+  <section id="portfolioView" hidden></section>
   <section id="picksView" hidden></section>
   <section id="fantasyView" hidden></section>
   <section id="playersView" hidden></section>
@@ -547,22 +548,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   const ALL_ROSTER_SLOTS = [...STARTER_SLOTS,...BENCH_SLOTS,IR_SLOT];
   const MAX_ROSTER_SIZE = ALL_ROSTER_SLOTS.length;
   const readFantasy = () => { try { const value = JSON.parse(localStorage.getItem(FANTASY_STORAGE) || '{}'); return value && typeof value === 'object' ? value : {}; } catch (_) { return {}; } };
-  const readPicks = () => {
-    try {
-      const value=JSON.parse(localStorage.getItem(PICK_STORAGE)||'{}');
-      if(!value||typeof value!=='object')return {};
-      Object.values(value).forEach(p=>{
-        if(!p||typeof p!=='object')return;
-        delete p.totalSide;
-        delete p.totalLine;
-        if(p.result){
-          const winnerCorrect=p.result.winnerCorrect??null;
-          p.result={winnerCorrect,correct:winnerCorrect===true?1:0,scored:winnerCorrect===null?0:1};
-        }
-      });
-      return value;
-    } catch (_) { return {}; }
-  };
+  const readPicks = () => { try { const value = JSON.parse(localStorage.getItem(PICK_STORAGE) || '{}'); return value && typeof value === 'object' ? value : {}; } catch (_) { return {}; } };
   const state = { games: [], picks: readPicks(), fantasy: readFantasy(), fantasyDraft: {leagueId:'',season:'',rosterText:''}, fantasyLeagueTeams: [], fantasyMessage: '', fantasyLoading: false, fantasyPhotoLookupRunning: false, gameSummaries: {}, gameLeaders: {}, gamePlayerStats: {}, leaderFetchedAt: {}, leaderFetchState: {}, leaderBatchLoading: false, filter: 'all', query: '', selectedId: null, summary: null, summaryLoading: false, loading: false, error: '', lastUpdated: null, week: null, season: null, sort: 'time', rankingQuery:'', rankingPosition:'ALL', rankingSort:'points', playerPositionFilter:'ALL', fantasyPlayerQuery:'', fantasyPlayerPosition:'ALL', fantasySearchResults:[], fantasySearchLoading:false, fantasySearchTimer:null, playerSearchQuery:'', playerSearchResults:[], playerSearchLoading:false, playerSearchTimer:null, playerProfile:null, playerProfileLoading:false, playerProfileError:'', playerProfileYear:2026, playerProfileCache:{}, playerHistory:{}, weeklyFantasyUpdatedAt:0, weeklyFantasyLoading:false, weeklyFantasyWeek:null, weeklyFantasyError:'', comparePlayers:[], nflPlayerPool:[], nflPlayerPoolLoading:false, nflPlayerPoolLoadedAt:0, nflPlayerPoolError:'', standings:[], standingsLoading:false, standingsError:'', standingsUpdated:null, community:{client:null,session:null,user:null,leagues:[],activeLeagueId:'',members:[],picks:[],rosters:[],message:'',messageType:'',busy:false,ready:false}, newsItems:[],newsLoading:false,newsError:'',newsLastUpdated:null };
   const $ = id => document.getElementById(id);
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -593,8 +579,15 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     if (!homeComp || !awayComp) return null;
     const type = comp.status?.type || ev.status?.type || {};
     const venue = comp.venue || {};
+    const odds = Array.isArray(comp.odds) ? (comp.odds[0] || {}) : (comp.odds || {});
+    const rawTotal = odds.overUnder ?? odds.total ?? null;
+    const parsedTotal = rawTotal === null ? NaN : Number.parseFloat(String(rawTotal));
+    // ESPN's odds string looks like "KC -3.5" (favourite and points) or "EVEN". mu = expected home margin.
+    let mu = null;
+    const oddsText = String(odds.details || '').trim(), dm = oddsText.match(/^(\S+)\s+(-\d+(?:\.\d+)?)/);
+    if (dm) { const fav = -Number.parseFloat(dm[2]); mu = dm[1] === homeComp.team?.abbreviation ? fav : -fav; } else if (/^even$/i.test(oddsText)) mu = 0;
     return {
-      id: String(ev.id), date: ev.date, name: ev.name || ev.shortName || 'NFL game',
+      id: String(ev.id), date: ev.date, name: ev.name || ev.shortName || 'NFL game', totalLine: Number.isFinite(parsedTotal) ? parsedTotal : null, mu, oddsDetail: oddsText,
       shortName: ev.shortName || '', state: type.state || (type.completed ? 'post' : 'pre'),
       completed: !!type.completed, statusDetail: type.shortDetail || type.detail || type.description || 'Scheduled',
       period: number(comp.status?.period), clock: comp.status?.displayClock || '',
@@ -619,6 +612,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     return `<article class="game-card" tabindex="0" role="button" data-game="${esc(g.id)}" aria-label="View ${esc(g.name)} details">
       <div class="game-meta">${statusMarkup(g)}<span class="game-venue">${esc(g.venue || (g.week ? `Week ${g.week}` : 'NFL'))}</span></div>
       ${teamLine(g.away)}${teamLine(g.home)}
+      ${window.FG&&FG.mk?FG.mk.cardRow(g):''}
       ${gameLeaderStrip(g)}
       <div class="card-footer"><span>${esc(g.broadcast || g.shortName || 'Game details')}</span><span class="card-link">Game details <span aria-hidden="true">↗</span></span></div>
     </article>`;
@@ -724,83 +718,19 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     return `<div class="panel"><div class="panel-head"><h3>Score by quarter</h3><span>Official score</span></div><div style="overflow-x:auto"><table class="quarter-table"><thead><tr><th>Team</th>${headers}<th>Final</th></tr></thead><tbody>${row(g.away)}${row(g.home)}</tbody></table></div></div>`;
   }
   function scoringChart(g, plays) {
-    const scoring=(plays||[]).filter(p=>p.scoringPlay!==false&&(p.homeScore!=null||p.awayScore!=null));
-    if(!scoring.length)return `<div class="chart-empty">Scoring timeline will appear when ESPN provides scoring-play data for this game.</div>`;
-    const points=[{home:0,away:0,label:'Kickoff',event:'Game begins'}];
-    scoring.forEach(p=>{
-      const period=p.period?.number?`Q${p.period.number}`:'';
-      const clock=p.clock?.displayValue||'';
-      points.push({
-        home:number(p.homeScore),away:number(p.awayScore),
-        label:[period,clock].filter(Boolean).join(' · ')||'Scoring play',
-        event:p.text||p.shortDescription||p.type?.text||'Scoring play'
-      });
-    });
+    const scoring = (plays || []).filter(p => p.scoringPlay !== false && (p.homeScore != null || p.awayScore != null));
+    if (!scoring.length) return `<div class="chart-empty">Scoring timeline will appear when ESPN provides scoring-play data for this game.</div>`;
+    const points = [{home:0,away:0,label:'Kickoff'}];
+    scoring.forEach(p=>points.push({home:number(p.homeScore),away:number(p.awayScore),label:`${p.period?.number ? 'Q'+p.period.number : ''} ${p.clock?.displayValue || ''}`}));
     const W=620,H=190,L=38,R=10,T=12,B=28,innerW=W-L-R,innerH=H-T-B;
     const max=Math.max(7,...points.map(p=>Math.max(p.home,p.away)));
     const y=v=>T+innerH-(v/(max+7))*innerH;
     const x=i=>L+(i/Math.max(1,points.length-1))*innerW;
     const path=key=>points.map((p,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(p[key]).toFixed(1)}`).join(' ');
-    const grid=[0,.25,.5,.75,1].map(v=>{
-      const val=Math.round((max+7)*v);
-      return `<line x1="${L}" x2="${W-R}" y1="${y(val)}" y2="${y(val)}" stroke="var(--line)" stroke-dasharray="3 5"/><text x="${L-9}" y="${y(val)+4}" fill="var(--muted)" text-anchor="end" font-size="10">${val}</text>`;
-    }).join('');
-    const dots=(key,color)=>points.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p[key])}" r="3.2" fill="${color}"/>`).join('');
-    const hitZones=points.map((p,i)=>{
-      // Divide the horizontal chart into non-overlapping hit areas so every play
-      // can be inspected without needing to hover an exact pixel-sized dot.
-      const left=i===0?L:(x(i-1)+x(i))/2;
-      const right=i===points.length-1?W-R:(x(i)+x(i+1))/2;
-      return `<rect class="score-hit" x="${left.toFixed(1)}" y="${T}" width="${Math.max(1,right-left).toFixed(1)}" height="${innerH}" fill="transparent" pointer-events="all" data-score-index="${i}" data-label="${esc(p.label)}" data-event="${esc(p.event)}" data-away="${p.away}" data-home="${p.home}" data-away-name="${esc(g.away.name)}" data-home-name="${esc(g.home.name)}" data-away-color="${esc(g.away.color)}" data-home-color="${esc(g.home.color)}" tabindex="0" role="button" aria-label="${esc(p.label)}: ${esc(g.away.name)} ${p.away}, ${esc(g.home.name)} ${p.home}"/>`;
-    }).join('');
-    return `<div class="chart-wrap score-chart-wrap" data-score-chart>
-      <svg class="chart score-interactive-chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Interactive cumulative score progression. Hover or tap the chart to inspect each scoring play.">
-        ${grid}
-        <path d="${path('away')}" fill="none" stroke="${g.away.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        ${dots('away',g.away.color)}
-        <path d="${path('home')}" fill="none" stroke="${g.home.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        ${dots('home',g.home.color)}
-        ${hitZones}
-        <text x="${L}" y="${H-5}" fill="var(--muted)" font-size="10">Start</text>
-        <text x="${W-R}" y="${H-5}" fill="var(--muted)" font-size="10" text-anchor="end">${isFinal(g)?'Final':isLive(g)?'Current':'End'}</text>
-      </svg>
-      <div class="score-chart-tooltip" hidden role="status" aria-live="polite"></div>
-      <p class="chart-interaction-hint">Hover or tap along the chart to see the score after each scoring play.</p>
-      <div class="chart-legend"><span><i class="legend-dot" style="background:${g.away.color}"></i>${esc(g.away.name)}</span><span><i class="legend-dot" style="background:${g.home.color}"></i>${esc(g.home.name)}</span></div>
-    </div>`;
+    const grid=[0,.25,.5,.75,1].map(v=>{const val=Math.round((max+7)*v);return `<line x1="${L}" x2="${W-R}" y1="${y(val)}" y2="${y(val)}" stroke="#263542" stroke-dasharray="3 5"/><text x="${L-9}" y="${y(val)+4}" fill="#71818d" text-anchor="end" font-size="10">${val}</text>`}).join('');
+    const dots=(key,color)=>points.map((p,i)=>`<circle cx="${x(i)}" cy="${y(p[key])}" r="3" fill="${color}"/>`).join('');
+    return `<div class="chart-wrap"><svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cumulative score progression through the game">${grid}<path d="${path('away')}" fill="none" stroke="${g.away.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${dots('away',g.away.color)}<path d="${path('home')}" fill="none" stroke="${g.home.color}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>${dots('home',g.home.color)}<text x="${L}" y="${H-5}" fill="#71818d" font-size="10">Start</text><text x="${W-R}" y="${H-5}" fill="#71818d" font-size="10" text-anchor="end">${isFinal(g)?'Final':isLive(g)?'Current':'End'}</text></svg><div class="chart-legend"><span><i class="legend-dot" style="background:${g.away.color}"></i>${esc(g.away.name)}</span><span><i class="legend-dot" style="background:${g.home.color}"></i>${esc(g.home.name)}</span></div></div>`;
   }
-  function attachScoringChartInteractions() {
-    const wrap=$('detailView')?.querySelector('[data-score-chart]');
-    if(!wrap)return;
-    const svg=wrap.querySelector('svg'),tip=wrap.querySelector('.score-chart-tooltip');
-    if(!svg||!tip)return;
-    const show=hit=>{
-      if(!hit)return;
-      const d=hit.dataset;
-      tip.innerHTML=`<b>${esc(d.label)}</b><div class="score-tooltip-teams"><span><i style="background:${esc(d.awayColor)}"></i>${esc(d.awayName)} <strong>${esc(d.away)}</strong></span><span><i style="background:${esc(d.homeColor)}"></i>${esc(d.homeName)} <strong>${esc(d.home)}</strong></span></div><small>${esc(d.event)}</small>`;
-      tip.hidden=false;
-      const wrapRect=wrap.getBoundingClientRect(),hitRect=hit.getBoundingClientRect();
-      const desired=(hitRect.left+hitRect.width/2)-wrapRect.left+10;
-      const maxLeft=Math.max(8,wrap.clientWidth-tip.offsetWidth-8);
-      tip.style.left=`${Math.max(8,Math.min(maxLeft,desired))}px`;
-      tip.style.top='10px';
-    };
-    svg.addEventListener('pointermove',event=>{
-      const hit=event.target.closest?.('[data-score-index]');
-      if(hit)show(hit);
-    });
-    svg.addEventListener('pointerleave',()=>{tip.hidden=true;});
-    svg.addEventListener('focusin',event=>show(event.target.closest?.('[data-score-index]')));
-    svg.addEventListener('focusout',()=>{tip.hidden=true;});
-    svg.addEventListener('pointerdown',event=>{
-      const hit=event.target.closest?.('[data-score-index]');
-      if(hit)show(hit);
-    });
-    svg.addEventListener('keydown',event=>{
-      if(event.key==='Escape')tip.hidden=true;
-    });
-  }
-
   function getTeamStats(summary, g) {
     const teams = summary?.boxscore?.teams || [];
     const find = t => teams.find(x => String(x.team?.id) === String(t.id) || x.team?.abbreviation === t.abbr);
@@ -1219,100 +1149,27 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     saveFantasy();refreshFantasyRoster();
   }
   function defenseFantasyPoints(player) {
-    const team=normalizeTeamAbbr(player.teamAbbr||'');
-    const statMap=box=>{
-      const out={};
-      (box?.statistics||[]).forEach(item=>{
-        const key=normName(item.name||item.abbreviation||item.displayName||item.label||'');
-        if(key)out[key]=item.value??item.displayValue??0;
-      });
-      return out;
-    };
-    const get=(map,patterns)=>{
-      for(const pattern of patterns){
-        const key=Object.keys(map).find(k=>pattern.test(k));
-        if(key!==undefined)return statNumber(map[key]);
-      }
-      return null;
-    };
-    const pointsAllowedScore=n=>{
-      if(n===0)return 5;
-      if(n<=6)return 4;
-      if(n<=13)return 3;
-      if(n<=17)return 1;
-      if(n<=27)return 0;
-      if(n<=34)return -1;
-      if(n<=45)return -3;
-      return -5;
-    };
-    const yardsAllowedScore=n=>{
-      if(n<100)return 5;
-      if(n<200)return 3;
-      if(n<300)return 2;
-      if(n<350)return 0;
-      if(n<400)return -1;
-      if(n<450)return -3;
-      if(n<500)return -5;
-      if(n<550)return -6;
-      return -7;
-    };
+    const team=String(player.teamAbbr||'').toUpperCase();
     for(const game of state.games){
-      const isHome=normalizeTeamAbbr(game.home.abbr)===team;
-      const isAway=normalizeTeamAbbr(game.away.abbr)===team;
-      if(!isHome&&!isAway)continue;
-      const summary=state.gameSummaries[game.id];
-      const boxTeams=summary?.boxscore?.teams||[];
-      if(!boxTeams.length)continue;
-      const ownAbbr=team;
-      const opponentAbbr=normalizeTeamAbbr(isHome?game.away.abbr:game.home.abbr);
-      const own=boxTeams.find(t=>normalizeTeamAbbr(t.team?.abbreviation||'')===ownAbbr);
-      const opponent=boxTeams.find(t=>normalizeTeamAbbr(t.team?.abbreviation||'')===opponentAbbr);
-      if(!own||!opponent)continue;
-      const ownStats=statMap(own),oppStats=statMap(opponent);
-      const totalYards=get(oppStats,[/^totalyards$/,/^totaloffensiveyards$/,/^totyards$/]);
-      const passYards=get(oppStats,[/^netpassingyards$/,/^passingyards$/]);
-      const rushYards=get(oppStats,[/^rushingyards$/]);
-      const oppYards=totalYards??(passYards!==null||rushYards!==null?(passYards??0)+(rushYards??0):null);
-      // ESPN's D/ST points-allowed total excludes points scored by the opponent
-      // on interception/fumble-return touchdowns against this team's offense.
-      let excludedReturnPoints=0,previousHome=0,previousAway=0;
-      (summary.scoringPlays||[]).forEach(play=>{
-        const currentHome=Number(play.homeScore??previousHome);
-        const currentAway=Number(play.awayScore??previousAway);
-        const scoringAbbr=normalizeTeamAbbr(play.team?.abbreviation||'');
-        const text=String(play.text||play.shortDescription||play.type?.text||'');
-        const delta=isHome?currentAway-previousAway:currentHome-previousHome;
-        if(scoringAbbr===opponentAbbr&&delta>0&&/(interception|pick\\s*[- ]?six|fumble.*return|return.*fumble)/i.test(text)&&/(touchdown|\\btd\\b)/i.test(text)){
-          excludedReturnPoints+=delta;
-        }
-        previousHome=currentHome;previousAway=currentAway;
-      });
-      const rawPointsAllowed=isHome?Number(game.away.score||0):Number(game.home.score||0);
-      const pointsAllowed=Math.max(0,rawPointsAllowed-excludedReturnPoints);
-      const yardsBonus=Number.isFinite(oppYards)?yardsAllowedScore(oppYards):0;
-      const pointsBonus=pointsAllowedScore(pointsAllowed);
-      const sacks=get(ownStats,[/^sacks$/,/^totalsacks$/])??0;
-      const interceptions=get(ownStats,[/^interceptions$/,/^interceptionsmade$/,/^int$/])??0;
-      const recoveries=get(ownStats,[/^fumblesrecovered$/,/^fumblesrecovery$/,/^fumblerecoveries$/])??0;
-      const safeties=get(ownStats,[/^safeties$/,/^safety$/])??0;
-      const sumAvailable=values=>values.filter(v=>v!==null).reduce((a,b)=>a+b,0);
-      const blockedTotal=get(ownStats,[/^blockedkicks$/]);
-      const blocked=blockedTotal!==null?blockedTotal:sumAvailable([
-        get(ownStats,[/^blockedpunts$/]),
-        get(ownStats,[/^blockedfieldgoals$/]),
-        get(ownStats,[/^blockedpat$/])
-      ]);
-      const defensiveTD=get(ownStats,[/^defensivetouchdowns$/]);
-      const touchdowns=defensiveTD!==null?defensiveTD:sumAvailable([
-        get(ownStats,[/^interceptionreturntouchdowns$/]),
-        get(ownStats,[/^fumblereturntouchdowns$/])
-      ]);
-      const returnTD=sumAvailable([
-        get(ownStats,[/^kickoffreturntouchdowns$/]),
-        get(ownStats,[/^puntreturntouchdowns$/]),
-        get(ownStats,[/^blockedkickreturntouchdowns$/])
-      ]);
-      return pointsBonus+yardsBonus+sacks+interceptions*2+recoveries*2+(touchdowns+returnTD)*6+safeties*2+blocked*2;
+      const isHome=game.home.abbr===team,isAway=game.away.abbr===team;if(!isHome&&!isAway)continue;
+      const summary=state.gameSummaries[game.id];if(!summary?.boxscore?.teams)continue;
+      const own=summary.boxscore.teams.find(t=>t.team?.abbreviation===team||t.team?.id===(isHome?game.home.id:game.away.id));
+      if(!own)continue;
+      const stats={};(own.statistics||[]).forEach(x=>{const key=normName(x.name||x.abbreviation||x.displayName||'');stats[key]=x.value??x.displayValue??0;});
+      const get=patterns=>{const key=Object.keys(stats).find(k=>patterns.some(r=>r.test(k)));return key===undefined?0:statNumber(stats[key]);};
+      const opponentScore=isHome?game.away.score:game.home.score;
+      let pointsAllowed=0;
+      if(opponentScore===0)pointsAllowed=5;
+      else if(opponentScore<=6)pointsAllowed=4;
+      else if(opponentScore<=13)pointsAllowed=3;
+      else if(opponentScore<=17)pointsAllowed=1;
+      else if(opponentScore<=27)pointsAllowed=0;
+      else if(opponentScore<=34)pointsAllowed=-1;
+      else if(opponentScore<=45)pointsAllowed=-3;
+      else pointsAllowed=-5;
+      // Weekly ESPN Fantasy appliedTotal is the source of truth. This fallback omits some
+      // offensive-yards-allowed and special-team distinctions when box-score data is incomplete.
+      return pointsAllowed+get([/sacks/])+get([/interceptions/])*2+get([/fumblesrecovered/,/fumblesrecovery/,/fumblerecoveries/])*2+get([/defensivetouchdowns/,/returntouchdowns/])*6+get([/safeties/])*2+get([/blockedkicks/,/blockedpunts/])*2;
     }
     return null;
   }
@@ -1332,40 +1189,32 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     const url=String(value||'').trim();
     return /^https:\/\/(?:a\.)?espncdn\.com\//i.test(url) ? url : '';
   }
-  function fantasyHeadshotCandidates(player, stats) {
-    if(fantasyPosition(player)==='D/ST') {
-      const team=teamFor(player?.teamAbbr);
-      const logo=safeHeadshot(player.headshot||player.photo||team?.logo)||safeHeadshot(team?.logo);
-      return logo?[logo]:[];
-    }
-    const urls=[];
-    [player?.headshot,player?.photo,stats?.headshot].forEach(value=>{
-      const url=safeHeadshot(value);
-      if(url&&!urls.includes(url))urls.push(url);
-    });
-    const id=String(player?.id||stats?.id||'');
-    if(/^\d+$/.test(id)) {
-      [
-        `https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png`,
-        `https://a.espncdn.com/i/headshots/nfl/players/full/${id}.jpg`,
-        `https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png?w=350&h=254`
-      ].forEach(url=>{if(!urls.includes(url))urls.push(url);});
-    }
-    return urls;
-  }
   function fantasyHeadshot(player, stats) {
-    return fantasyHeadshotCandidates(player,stats)[0]||'';
+    const pos=fantasyPosition(player);
+    const team=teamFor(player?.teamAbbr);
+    if(pos==='D/ST') return safeHeadshot(player.headshot||player.photo||team?.logo)||team?.logo||'';
+    const inline=safeHeadshot(player.headshot || player.photo || stats?.headshot);
+    if(inline) return inline;
+    const id=String(player.id || stats?.id || '');
+    return /^\d+$/.test(id) ? `https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png` : (team?.logo||'');
   }
-  function avatarFallback() {
+  function avatarFallback(player) {
+    const team=teamFor(player?.teamAbbr);
+    if(team?.logo)return `<span class="fantasy-avatar-fallback"><img src="${esc(team.logo)}" alt="${esc(team.name)} logo" loading="lazy" onerror="this.hidden=true;this.parentElement.classList.add('empty-photo')"></span>`;
     return `<span class="fantasy-avatar-fallback empty-photo" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="17" r="9"/><path d="M7 43c1.8-9.4 7.8-14 17-14s15.2 4.6 17 14"/></svg></span>`;
   }
   function fantasyAvatar(player, stats) {
-    const candidates=fantasyHeadshotCandidates(player,stats);
-    const label=esc(player?.name||'NFL player');
-    const fallback=avatarFallback();
-    if(!candidates.length)return `<span class="fantasy-avatar">${fallback}</span>`;
-    const sources=esc(JSON.stringify(candidates));
-    return `<span class="fantasy-avatar"><img src="${esc(candidates[0])}" data-photo-candidates="${sources}" data-photo-index="0" alt="${label}" loading="lazy" referrerpolicy="no-referrer" onerror="const a=JSON.parse(this.dataset.photoCandidates||'[]');const i=Number(this.dataset.photoIndex||0)+1;if(i<a.length){this.dataset.photoIndex=String(i);this.src=a[i];}else{this.hidden=true;this.nextElementSibling.hidden=false;}">${fallback.replace('class="fantasy-avatar-fallback empty-photo"','class="fantasy-avatar-fallback empty-photo" hidden')}</span>`;
+    const photo=fantasyHeadshot(player,stats);
+    const id=String(player?.id||stats?.id||'');
+    const canonical=/^\d+$/.test(id)?`https://a.espncdn.com/i/headshots/nfl/players/full/${id}.png`:'';
+    const alternate=/^\d+$/.test(id)?`https://a.espncdn.com/i/headshots/nfl/players/full/${id}.jpg`:'';
+    const fallbacks=[canonical,alternate].filter((url,i,arr)=>url&&url!==photo&&arr.indexOf(url)===i);
+    const team=teamFor(player?.teamAbbr);
+    const fallback=avatarFallback(player);
+    const fallbackHtml=fallback.replace('class="fantasy-avatar-fallback"','class="fantasy-avatar-fallback" hidden');
+    const first=photo||fallback;
+    if(!photo)return `<span class="fantasy-avatar">${fallback}</span>`;
+    return `<span class="fantasy-avatar"><img src="${esc(photo)}" alt="${esc(player.name||'NFL player')}" loading="lazy" referrerpolicy="no-referrer" data-fallbacks="${esc(fallbacks.join('|'))}" data-teamlogo="${esc(team?.logo||'')}" onerror="if(this.dataset.fallbacks){const urls=this.dataset.fallbacks.split('|').filter(Boolean);this.dataset.fallbacks=urls.slice(1).join('|');if(urls[0]){this.src=urls[0];return;}}if(this.dataset.teamlogo){const next=this.dataset.teamlogo;this.dataset.teamlogo='';this.src=next;return;}this.hidden=true;this.nextElementSibling.hidden=false;">${fallbackHtml}</span>`;
   }
   function collectSearchAthletes(node, out=[]) {
     if (Array.isArray(node)) { node.forEach(item=>collectSearchAthletes(item,out)); return out; }
@@ -1516,7 +1365,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     const currentPool=state.nflPlayerPool.length?`${state.nflPlayerPool.length} player/team options`:(state.nflPlayerPoolLoading?'Loading all NFL rosters…':'Player directory not loaded');
     $('fantasyView').innerHTML=`<div class="page-head"><div><div class="eyebrow">Fantasy football · weekly lineup</div><h1>My fantasy team</h1><p>Tap or drag players into your lineup. Starters run QB, RB, RB, WR, WR, TE, FLEX, D/ST and K, with seven bench spots and one IR slot.</p></div><span class="ppr-chip">1.0 PPR</span></div>
       ${message}
-      <div class="panel" id="fantasyRosterPanel"><div class="panel-head"><h3>Roster setup</h3><span>${esc(source)} · 9 starters / 7 bench / 1 IR</span></div><div class="fantasy-roster-meta"><span>${players.length}/17 roster spots</span><span>1 QB · 2 RB · 2 WR · 1 TE · 1 FLEX · 1 D/ST · 1 K</span><span>ESPN weekly fantasy totals first · standard PPR/D/ST fallback</span></div><div id="fantasyRosterContent">${renderFantasyRosterMarkup()}</div><div id="fantasyRosterActions">${players.length?'<div style="margin-top:12px"><button class="fantasy-btn secondary" type="button" id="clearRoster">Clear roster</button></div>':''}</div></div>
+      <div class="panel" id="fantasyRosterPanel"><div class="panel-head"><h3>Roster setup</h3><span>${esc(source)} · 9 starters / 7 bench / 1 IR</span></div><div class="fantasy-roster-meta"><span>${players.length}/17 roster spots</span><span>1 QB · 2 RB · 2 WR · 1 TE · 1 FLEX · 1 D/ST · 1 K</span><span>ESPN weekly actual PPR · box-score fallback</span></div><div id="fantasyRosterContent">${renderFantasyRosterMarkup()}</div><div id="fantasyRosterActions">${players.length?'<div style="margin-top:12px"><button class="fantasy-btn secondary" type="button" id="clearRoster">Clear roster</button></div>':''}</div></div>
       <div class="fantasy-columns fantasy-tools-grid">
         <div class="panel"><div class="panel-head"><h3>Add NFL players</h3><span>${esc(currentPool)}</span></div><p class="fantasy-help">Search the full active ESPN fantasy player pool, including free agents, kickers and every team D/ST.</p>
           <div class="quick-tools"><input id="fantasyPlayerSearch" type="search" placeholder="Search players or teams…" autocomplete="off" value="${esc(state.fantasyPlayerQuery)}"><select id="fantasyPlayerPosition" aria-label="Filter player position"><option value="ALL" ${state.fantasyPlayerPosition==='ALL'?'selected':''}>All positions</option>${['QB','RB','WR','TE','K','D/ST'].map(p=>`<option value="${p}" ${state.fantasyPlayerPosition===p?'selected':''}>${p}</option>`).join('')}</select></div>
@@ -1528,7 +1377,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
           <details class="manual-details"><summary>Enter players manually</summary><div class="manual-inner"><form class="fantasy-form" id="manualRosterForm"><label for="rosterText">One player per line: Name, Position, Team</label><textarea id="rosterText" placeholder="Josh Allen, QB, BUF&#10;James Cook, RB, BUF&#10;CeeDee Lamb, WR, DAL&#10;Trey McBride, TE, ARI&#10;Bills D/ST, D/ST, BUF&#10;Tyler Bass, K, BUF">${esc(state.fantasyDraft.rosterText||'')}</textarea><button class="fantasy-btn" type="submit">Save manual roster</button></form></div></details>
         </div>
       </div>
-      <p class="note">Scoring used here: 1 point per reception; 0.1 per rushing/receiving yard; 0.04 per passing yard; 6 per rushing/receiving TD; 4 per passing TD; −2 per interception or lost fumble; 2 per two-point conversion. K: 3 points for 0–39, 4 for 40–49, 5 for 50–59, 6 for 60+, +1 per made PAT and −1 per missed FG. D/ST: ESPN standard points-allowed and yards-allowed tiers, plus sacks, interceptions, recoveries, defensive/return TDs, safeties and blocked kicks. ESPN weekly actuals take priority when available. Check your league settings for custom rules.</p>`;
+      <p class="note">Scoring used here: 1 point per reception; 0.1 per rushing/receiving yard; 0.04 per passing yard; 6 per rushing/receiving TD; 4 per passing TD; −2 per interception or lost fumble; 2 per two-point conversion. K: 3 points for 0–39, 4 for 40–49, 5 for 50–59, 6 for 60+, +1 per made PAT and −1 per missed FG. D/ST: ESPN-style points-allowed bands plus sacks, interceptions, fumble recoveries, defensive TDs, safeties and blocked kicks. Check your league settings for custom rules.</p>`;
     renderFantasyPlayerResults();
     if(state.nflPlayerPool.length)resolveFantasyHeadshots();
   }
@@ -1975,7 +1824,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       <div class="community-grid"><div class="panel"><div class="panel-head"><h3>Your leagues</h3><span>${c.leagues.length} joined</span></div>${selected?`<label class="community-label">Active league<select id="communityLeagueSelect" class="select">${leagueOptions}</select></label><div class="invite-box"><small>INVITE CODE</small><b>${esc(selected.invite_code)}</b><button class="mini-action" id="copyInvite">Copy</button></div><p class="community-copy">Share the invite code with friends. They sign in and enter it under Join a league.</p><div class="community-actions"><button class="fantasy-btn" id="syncPicks">Sync my picks</button><button class="fantasy-btn secondary" id="syncRoster">Sync my roster</button><button class="fantasy-btn secondary" id="refreshLeague">Refresh</button></div>`:'<div class="chart-empty">You have not joined a league yet.</div>'}
         <details class="community-details"><summary>Create a league</summary><form id="createCommunityForm" class="community-form"><label>League name<input id="newLeagueName" maxlength="50" placeholder="Sunday Crew" required></label><label>Your display name<input id="communityDisplayName" maxlength="32" placeholder="Your name" required></label><button class="fantasy-btn" type="submit">Create league</button></form></details>
         <details class="community-details"><summary>Join with an invite code</summary><form id="joinCommunityForm" class="community-form"><label>Invite code<input id="joinLeagueCode" maxlength="12" placeholder="ABCD1234" required></label><label>Your display name<input id="joinDisplayName" maxlength="32" placeholder="Your name" required></label><button class="fantasy-btn" type="submit">Join league</button></form></details>
-      </div><div class="panel"><div class="panel-head"><h3>League leaderboard</h3><span>Free picks · season points</span></div>${standings.length?`<div class="league-leaderboard">${standings.map((m,i)=>`<div class="league-rank-row"><span class="league-rank">${i+1}</span><b>${esc(m.name)}${m.id===user.id?' (you)':''}</b><strong>${m.points}</strong><small>pts</small></div>`).join('')}</div>`:'<div class="chart-empty">Join or create a league to see your leaderboard.</div>'}<p class="source-note">Leaderboard points are earned through this league's free pick game. This is a free social prediction game; no entry fees or prizes.</p></div></div>
+      </div><div class="panel"><div class="panel-head"><h3>League leaderboard</h3><span>Free picks · season points</span></div>${standings.length?`<div class="league-leaderboard">${standings.map((m,i)=>`<div class="league-rank-row"><span class="league-rank">${i+1}</span><b>${esc(m.name)}${m.id===user.id?' (you)':''}</b><strong>${m.points}</strong><small>pts</small></div>`).join('')}</div>`:'<div class="chart-empty">Join or create a league to see your leaderboard.</div>'}<p class="source-note">Leaderboard points come from correct winner/total predictions saved to this league. This is a free social prediction game; no entry fees or prizes.</p></div></div>
       <div class="panel"><div class="panel-head"><h3>Shared fantasy rosters</h3><span>Member teams</span></div><div class="community-roster-grid">${rosterCards}</div></div>`;
   }
   async function handleCommunitySubmit(form) {
@@ -2018,28 +1867,51 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     return isLive(g) || isFinal(g) || (Number.isFinite(kickoff) && Date.now() >= kickoff);
   }
   function pickOutcome(g,p) {
-    if(!isFinal(g))return null;
-    const actualWinner=g.home.score===g.away.score?null:(g.home.score>g.away.score?g.home.id:g.away.id);
-    const winnerCorrect=!p.winner||actualWinner===null?null:actualWinner===p.winner;
-    return {winnerCorrect,correct:winnerCorrect===true?1:0,scored:winnerCorrect===null?0:1};
+    if (!isFinal(g)) return null;
+    const total = g.home.score + g.away.score;
+    const actualWinner = g.home.score === g.away.score ? null : (g.home.score > g.away.score ? g.home.id : g.away.id);
+    const winnerCorrect = !p.winner || actualWinner === null ? null : actualWinner === p.winner;
+    let totalCorrect = null, totalPush = false;
+    if (p.totalSide && Number.isFinite(Number(p.totalLine))) {
+      if (total === Number(p.totalLine)) totalPush = true;
+      else totalCorrect = (p.totalSide === 'over') === (total > Number(p.totalLine));
+    }
+    const scored = [winnerCorrect, totalCorrect].filter(x => x !== null);
+    const correct = scored.filter(Boolean).length;
+    return {winnerCorrect,totalCorrect,totalPush,correct,scored:scored.length,total};
   }
-  function pickResultBadge(ok) {
-    if(ok===null||ok===undefined)return '<span class="pick-result">Awaiting result</span>';
-    return ok?'<span class="pick-result good">✓ Correct · +1 point</span>':'<span class="pick-result bad">✕ Incorrect · 0 points</span>';
+  function pickResultBadge(ok, push=false) {
+    if (push) return '<span class="pick-result push">PUSH · no point</span>';
+    if (ok === null || ok === undefined) return '<span class="pick-result">Awaiting result</span>';
+    return ok ? '<span class="pick-result good">✓ Correct · +1 point</span>' : '<span class="pick-result bad">✕ Incorrect · 0 points</span>';
   }
   function pickPanel(g) {
-    const saved=state.picks[g.id]||{};
-    const locked=pickLocked(g);
-    const outcome=pickOutcome(g,saved);
-    const winnerSummary=outcome?`<div style="margin-top:9px">${pickResultBadge(outcome.winnerCorrect)}</div>`:'';
-    const statusNote=isFinal(g)?'This game is final. Your pick has been scored.':locked?'Picks are locked because kickoff has passed.':'Picks lock automatically at kickoff. A correct winner prediction earns one point.';
-    return `<div class="panel pick-panel"><div class="panel-head"><h3>Pick the winner</h3><span>Free prediction game</span></div>
-      <p class="pick-intro">Choose the team you think will win. There are no stakes or payouts; points simply track your accuracy.</p>
+    const saved = state.picks[g.id] || {};
+    const locked = pickLocked(g);
+    const outcome = pickOutcome(g,saved);
+    const winnerName = saved.winner === g.home.id ? g.home.name : saved.winner === g.away.id ? g.away.name : '';
+    const winnerLine = outcome ? pickResultBadge(outcome.winnerCorrect) : '';
+    const totalLine = Number.isFinite(g.totalLine) ? g.totalLine : null;
+    let totalBlock = '';
+    if (totalLine !== null) {
+      const totalText = `Over ${totalLine}`;
+      const underText = `Under ${totalLine}`;
+      totalBlock = `<div class="pick-group"><div class="pick-label">Combined points · ${esc(totalLine)} line</div><div class="pick-options">
+        <button class="pick-option ${saved.totalSide==='over'?'selected':''}" data-pick-total="over" ${locked?'disabled':''}>${totalText}</button>
+        <button class="pick-option ${saved.totalSide==='under'?'selected':''}" data-pick-total="under" ${locked?'disabled':''}>${underText}</button>
+      </div>${outcome && saved.totalSide ? `<div style="margin-top:9px">${pickResultBadge(outcome.totalCorrect,outcome.totalPush)}</div>` : ''}</div>`;
+    } else {
+      totalBlock = '<div class="pick-group"><div class="pick-label">Over / under</div><div class="chart-empty">ESPN has not supplied a total line for this matchup, so this pick is unavailable.</div></div>';
+    }
+    const winnerSummary = outcome ? `<div style="margin-top:9px">${winnerLine}</div>` : '';
+    const statusNote = isFinal(g) ? 'This game is final. Your picks are settled.' : pickLocked(g) ? 'Picks are locked because kickoff has passed.' : 'Picks lock automatically at kickoff. Each correct selection earns one point.';
+    return `<div class="panel pick-panel"><div class="panel-head"><h3>Make your picks</h3><span>Free prediction game</span></div>
+      <p class="pick-intro">Choose what you think will happen. There is no stake or payout; points simply track how accurate your calls are.</p>
       <div class="pick-group"><div class="pick-label">Who wins?</div><div class="pick-options">
         <button class="pick-option ${saved.winner===g.away.id?'selected':''}" data-pick-winner="${esc(g.away.id)}" ${locked?'disabled':''}>${esc(g.away.name)}</button>
         <button class="pick-option ${saved.winner===g.home.id?'selected':''}" data-pick-winner="${esc(g.home.id)}" ${locked?'disabled':''}>${esc(g.home.name)}</button>
       </div>${winnerSummary}</div>
-      <div class="pick-foot">${esc(statusNote)}</div></div>`;
+      ${totalBlock}<div class="pick-foot">${esc(statusNote)}</div></div>`;
   }
   function pickMetrics() {
     let games=0,settled=0,correct=0,awaiting=0;
@@ -2064,12 +1936,14 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       const winner=p.winner===g?.home?.id || p.winner===p.homeId ? home : p.winner===g?.away?.id || p.winner===p.awayId ? away : 'Not selected';
       const status=(g&&isFinal(g))||p.result?'Final':g&&isLive(g)?'Locked':g?'Pending':'Not in current feed';
       const badge=out?`<span class="pick-result ${out.correct?'good':out.correct===0?'bad':''}">${out.correct} / ${out.scored} points</span>`:`<span class="pick-result">${status}</span>`;
+      const totalText=p.totalSide?`${p.totalSide==='over'?'Over':'Under'} ${p.totalLine}`:'No total pick';
       cards+=`<article class="pick-entry"><div class="pick-entry-head"><div class="pick-entry-title">${esc(away)} @ ${esc(home)}</div>${badge}</div>
         <div class="pick-entry-line">Winner pick: <b>${esc(winner)}</b> ${out?pickResultBadge(out.winnerCorrect):''}</div>
+        <div class="pick-entry-line">Total pick: <b>${esc(totalText)}</b> ${out&&p.totalSide?pickResultBadge(out.totalCorrect,out.totalPush):''}</div>
         <div class="pick-foot">${g?esc(gameTime(g)):esc(fmtDate(p.date||'',{weekday:'short',month:'short',day:'numeric'}))}${g&&isFinal(g)?` · Final ${g.away.score}–${g.home.score}`:p.finalScore?` · Final ${p.finalScore}`:''}</div></article>`;
     });
     const pfHost=$('pfPicks');if(!pfHost)return;
-    pfHost.innerHTML=`<h2 class="pf-h">My prediction history</h2><p class="pf-sub">Track your winner picks, earn points for correct calls and review your accuracy.</p>
+    pfHost.innerHTML=`<h2 class="pf-h">Earlier free picks</h2><p class="pf-sub">Predictions you made before markets were added. New calls are made by trading contracts on each game.</p>
       <div class="pick-summary"><div class="pick-stat"><small>Games picked</small><strong>${m.games}</strong></div><div class="pick-stat"><small>Points earned</small><strong>${m.correct}</strong></div><div class="pick-stat"><small>Accuracy</small><strong>${m.accuracy}%</strong></div><div class="pick-stat"><small>Awaiting result</small><strong>${m.awaiting}</strong></div></div>
       <div class="panel-head" style="margin:5px 0 12px"><h3>Prediction history</h3><span>${m.settled} settled selections</span></div>
       <div class="pick-list">${cards||'<div class="pick-empty"><b>No picks yet</b><p>Open an upcoming game and choose the winner to start your prediction record.</p></div>'}</div>
@@ -2085,6 +1959,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
       <div class="detail-hero"><div class="detail-meta"><span>${statusMarkup(g)}</span><span>${esc(g.venue || (g.week?`Week ${g.week}`:'NFL'))}</span></div>
         <div class="detail-teams"><div class="detail-team">${teamLogo(g.away,'')}<h2>${esc(g.away.name)}</h2><p>${esc(g.away.record||'Away')}</p><div class="detail-score">${score(g.away)}</div></div><div class="detail-team">${teamLogo(g.home,'')}<h2>${esc(g.home.name)}</h2><p>${esc(g.home.record||'Home')}</p><div class="detail-score">${score(g.home)}</div></div></div>
       </div>
+      ${window.FG&&FG.mk?FG.mk.detail(g):''}
       <div class="detail-layout"><div>
         ${scoreTable(g)}
         <div class="panel"><div class="panel-head"><h3>Scoring progression</h3><span>Points over time</span></div>${summary?scoringChart(g,summary.scoringPlays):'<div class="chart-empty"><i class="spinner" style="display:inline-block;vertical-align:middle;margin-right:8px"></i>Loading scoring data…</div>'}</div>
@@ -2093,7 +1968,6 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
         <div class="panel"><div class="panel-head"><h3>Team comparison</h3><span>Game statistics</span></div>${summary?statCompare(summary,g):'<div class="chart-empty">Loading team statistics…</div>'}</div>
         <div class="panel"><div class="panel-head"><h3>Player leaders</h3><span>Top performers</span></div>${summary?leaderList(summary):'<div class="chart-empty">Loading player statistics…</div>'}</div>
       </div></div>`;
-    attachScoringChartInteractions();
   }
   async function loadSummary(id, quiet=false) {
     if (state.summaryLoading && !quiet) return;
@@ -2110,7 +1984,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     } finally {state.summaryLoading=false;}
   }
   function hideAllViews() {
-    ['scoreboardView','detailView','picksView','fantasyView','playersView','standingsView','communityView','newsView','aboutView'].forEach(id=>{const el=$(id);if(el)el.hidden=true;});
+    ['scoreboardView','detailView','portfolioView','picksView','fantasyView','playersView','standingsView','communityView','newsView','aboutView'].forEach(id=>{const el=$(id);if(el)el.hidden=true;});
   }
   function showStandings() {
     state.selectedId=null;hideAllViews();$('standingsView').hidden=false;setActiveNav('nav-standings');renderStandingsPage();window.scrollTo({top:0,behavior:'smooth'});loadStandings();
@@ -2124,7 +1998,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
     if((!state.newsItems.length || !state.newsLastUpdated || Date.now()-state.newsLastUpdated.getTime()>5*60*1000) && !state.newsLoading) loadNews();
   }
   function setActiveNav(active) {
-    ['nav-scoreboard','nav-picks','nav-fantasy','nav-standings','nav-news'].forEach(id=>{
+    ['nav-scoreboard','nav-portfolio','nav-fantasy','nav-standings','nav-news'].forEach(id=>{
       const button=$(id), selected=id===active;
       button.classList.toggle('active',selected);
       if(selected) button.setAttribute('aria-current','page'); else button.removeAttribute('aria-current');
@@ -2136,6 +2010,9 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   }
   function showScoreboard() {
     state.selectedId=null;hideAllViews();$('scoreboardView').hidden=false;setActiveNav('nav-scoreboard');window.scrollTo({top:0,behavior:'smooth'});
+  }
+  function showPortfolio() {
+    state.selectedId=null;hideAllViews();$('portfolioView').hidden=false;setActiveNav('nav-portfolio');if(window.FG&&FG.mk)FG.mk.portfolio();window.scrollTo({top:0,behavior:'smooth'});
   }
   function showPicks() {
     state.selectedId=null;hideAllViews();$('picksView').hidden=false;setActiveNav('nav-picks');renderPicksPage();window.scrollTo({top:0,behavior:'smooth'});
@@ -2151,10 +2028,11 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   $('gamesGrid').addEventListener('click',e=>{if(e.target.closest('#retryBtn'))loadScoreboard();});
   $('detailView').addEventListener('click',e=>{
     if(e.target.closest('#detailBack')){showScoreboard();return;}
-    const b=e.target.closest('[data-pick-winner]');if(!b)return;
+    const b=e.target.closest('[data-pick-winner],[data-pick-total]');if(!b)return;
     const g=state.games.find(x=>x.id===state.selectedId);if(!g||pickLocked(g))return;
     const prior=state.picks[g.id]||{gameId:g.id,homeId:g.home.id,awayId:g.away.id,homeName:g.home.name,awayName:g.away.name,date:g.date};
-    prior.winner=b.dataset.pickWinner;
+    if(b.dataset.pickWinner)prior.winner=b.dataset.pickWinner;
+    if(b.dataset.pickTotal){if(!Number.isFinite(g.totalLine))return;prior.totalSide=b.dataset.pickTotal;prior.totalLine=g.totalLine;}
     state.picks[g.id]=prior;savePicks();if(state.community.user&&state.community.activeLeagueId)syncCommunityPicks().catch(()=>{});renderDetail();
   });
   $('aboutBack').addEventListener('click',showScoreboard);
@@ -2182,7 +2060,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   }
   $('shareBtn').addEventListener('click',shareSite);
   $('nav-scoreboard').addEventListener('click',showScoreboard);
-  $('nav-picks').addEventListener('click',showPicks);
+  $('nav-portfolio').addEventListener('click',showPortfolio);
   $('nav-fantasy').addEventListener('click',showFantasy);
   $('nav-news').addEventListener('click',showNews);
   $('nav-standings').addEventListener('click',showStandings);
@@ -2252,6 +2130,7 @@ footer{border-top:1px solid var(--line);padding:20px 0 26px;color:#71818d;font-s
   setInterval(loadScoreboard,REFRESH_MS);
 })();
 </script>
+<script src="./markets.js"></script>
 <script>(function(){var b=document.getElementById('themeBtn');if(!b)return;function apply(t,keep){document.documentElement.dataset.theme=t;if(keep){try{localStorage.setItem('fg-theme',t)}catch(e){}}var m=document.querySelector('meta[name=theme-color]');if(m)m.content=t==='dark'?'#0c1116':'#f3f5f7';var l=t==='dark'?'Switch to light mode':'Switch to dark mode';b.setAttribute('aria-label',l);b.title=l}apply(document.documentElement.dataset.theme||'light',false);b.addEventListener('click',function(){apply(document.documentElement.dataset.theme==='dark'?'light':'dark',true)})})();</script>
 </body>
 </html>
