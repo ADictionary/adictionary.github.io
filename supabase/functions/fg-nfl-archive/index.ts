@@ -175,11 +175,14 @@ async function upsertGameRows(rows: Json[], initialChunkSize = 4) {
 }
 
 async function upsertSummary(eventId: string, summary: Json) {
-  await restRequest('fg_nfl_game_archive?on_conflict=event_id', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+  // Update the existing game record rather than attempting
+  // to insert a new record with missing required game fields.
+  const id = encodeURIComponent(eventId);
+
+  await restRequest(`fg_nfl_game_archive?event_id=eq.${id}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({
-      event_id: eventId,
       summary_json: cleanSummary(summary),
       summary_synced_at: new Date().toISOString(),
     }),
