@@ -174,20 +174,71 @@ async function upsertGameRows(rows: Json[], initialChunkSize = 4) {
   }
 }
 
+
 async function upsertSummary(eventId: string, summary: Json) {
-  // Update the existing game record rather than attempting
-  // to insert a new record with missing required game fields.
+  const cleaned = cleanSummary(summary);
+
+  if (!cleaned) {
+    throw new Error(`Empty ESPN summary for event ${eventId}`);
+  }
+
+  // Extract the individual data structures used by the website.
+  const boxscore =
+    cleaned.boxscore &&
+    typeof cleaned.boxscore === 'object'
+      ? cleaned.boxscore
+      : null;
+
+  const playerStats = Array.isArray(boxscore?.players)
+    ? boxscore.players
+    : null;
+
+  const scoringPlays = Array.isArray(cleaned.scoringPlays)
+    ? cleaned.scoringPlays
+    : [];
+
   const id = encodeURIComponent(eventId);
 
-  await restRequest(`fg_nfl_game_archive?event_id=eq.${id}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      summary_json: cleanSummary(summary),
-      summary_synced_at: new Date().toISOString(),
-    }),
-  });
+  // PATCH the existing game record, preserving its original game information.
+  // Return the updated row so we can verify that a record actually matched.
+  const updated = await restRequest(
+    `fg_nfl_game_archive?event_id=eq.${id}&select=event_id`,
+    {
+      method: 'PATCH',
+      headers: {
+        Prefer: 'return=representation',
+      },
+      body: JSON.stringify({
+        summary_json: cleaned,
+        boxscore_json: boxscore,
+        player_stats_json: playerStats,
+        scoring_plays_json: scoringPlays,
+        summary_synced_at: new Date().toISOString(),
+      }),
+    }
+  );
+
+  if (!Array.isArray(updated) || updated.length !== 1) {
+    throw new Error(
+      `Expected to update one game record for ${eventId}, but Supabase matched ${
+        Array.isArray(updated) ? updated.length : 0
+      } records. Check that the original game record exists.`
+    );
+  }
+
+  if (!boxscore) {
+    console.warn(
+      `[fg-nfl-archive] ESPN summary for ${eventId} contains no boxscore object.`
+    );
+  }
+
+  if (!playerStats) {
+    console.warn(
+      `[fg-nfl-archive] ESPN summary for ${eventId} contains no player statistics array.`
+    );
+  }
 }
+
 
 async function syncWeek(season: number, week: number, seasonType: number, action: string) {
   const startedAt = new Date().toISOString();
