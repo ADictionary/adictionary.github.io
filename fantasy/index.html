@@ -106,13 +106,14 @@
       <div id="leagueContent" hidden>
         <section class="panel league-toolbar-panel">
           <div><div class="eyebrow">CONNECTED LEAGUE</div><h3 id="leagueName">ESPN League</h3><p id="leagueMeta" class="subhead">—</p></div>
-          <div class="toolbar-controls"><label>Your team<select id="selectedLeagueTeam"></select></label><label>Matchup week<select id="matchupWeek"></select></label><button id="forgetLeague" class="button button-danger-quiet" type="button">Remove imported league</button></div>
+          <div class="toolbar-controls"><label>Your team<select id="selectedLeagueTeam"></select></label><label>Matchup week<select id="matchupWeek"></select></label><button id="refreshMatchupScores" class="button button-quiet" type="button">↻ Refresh live scores</button><button id="forgetLeague" class="button button-danger-quiet" type="button">Remove imported league</button></div>
         </section>
         <section id="myMatchupCard" class="panel my-matchup-card"></section>
         <div class="league-two-col">
           <section class="panel"><div class="panel-title"><div><div class="eyebrow">HEAD-TO-HEAD</div><h3 id="matchupsTitle">Weekly matchups</h3></div><span id="matchupCount" class="muted-tag">—</span></div><div id="matchupList" class="matchup-list"></div></section>
           <section class="panel"><div class="panel-title"><div><div class="eyebrow">SEASON RECORD</div><h3>League standings</h3></div><span class="muted-tag">ESPN records</span></div><div class="table-wrap"><table class="data-table standings-table"><thead><tr><th>#</th><th>TEAM</th><th>W-L-T</th><th>PF</th><th>PA</th></tr></thead><tbody id="standingsBody"></tbody></table></div></section>
         </div>
+        <section id="matchupDetail" class="panel matchup-detail-panel" aria-live="polite" hidden></section>
         <section class="panel all-rosters-panel"><div class="panel-title"><div><div class="eyebrow">LEAGUE DEPTH</div><h3>All team rosters</h3></div><span id="teamRosterCount" class="muted-tag">—</span></div><div id="leagueRosters" class="league-rosters"></div></section>
         <p class="fine-print league-footnote" id="leagueFootnote"></p>
       </div>

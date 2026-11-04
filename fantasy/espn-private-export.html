@@ -23,6 +23,15 @@
   <div class="warning"><b>Important:</b> Do not click the bookmarklet while you are on this helper page. It must be run from your signed-in ESPN league page, because that is where the browser can use your existing ESPN session.</div>
 </section>
 <section class="card">
+  <h2>Live matchup graphs: install the score tracker</h2>
+  <p>ESPN gives private leagues a live score snapshot, not a ready-made score timeline. This extra bookmark collects the scores about every 90 seconds while your ESPN league tab stays open, so Fourth &amp; Goal can draw a real matchup graph for every team pairing.</p>
+  <button class="primary" id="copyTrackerBookmarklet" type="button">Copy ESPN Live Score Tracker</button>
+  <div id="trackerCopyStatus" class="status" role="status" aria-live="polite">Copy this into a separate Chrome bookmark named “ESPN Live Score Tracker”.</div>
+  <details style="margin-top:14px"><summary class="small">Show tracker bookmarklet text if copying is blocked</summary><p class="small">Select all the text and copy it into the URL field of a new bookmark.</p><textarea id="trackerBookmarkletCode" readonly spellcheck="false"></textarea><button id="selectTrackerCode" class="secondary" type="button" style="margin-top:8px">Select tracker text</button></details>
+  <div class="steps"><span class="num">1</span><div>Create a <b>separate</b> bookmark named <b>ESPN Live Score Tracker</b> and paste this new code into its URL field.</div><span class="num">2</span><div>Open your private ESPN league page and click the tracker bookmark once. Confirm the season and scoring week. It will say that tracking has started.</div><span class="num">3</span><div>Leave that ESPN tab open while the games are being played. The tracker collects matchup scores about every 90 seconds.</div><span class="num">4</span><div>When you are finished, click the same bookmark again. It stops tracking and downloads a JSON file with the league data and the captured score timeline. Import that file into Fourth &amp; Goal Fantasy.</div></div>
+  <div class="warning"><b>Important:</b> The tracker only runs while the ESPN tab remains open. If you close or reload that tab, its in-memory capture ends. It makes read-only ESPN requests and does not read or store password or cookie values.</div>
+</section>
+<section class="card">
   <h2>3. Export your private league</h2>
   <div class="steps"><span class="num">1</span><div>Open ESPN Fantasy Football in the same Chrome profile and sign in normally.</div><span class="num">2</span><div>Navigate to your private league's home or matchup page. The address should contain your league ID, usually as <span class="inline-code">?leagueId=123456</span>.</div><span class="num">3</span><div>Click the <b>ESPN League Export</b> bookmark you created.</div><span class="num">4</span><div>Confirm the season and scoring week when prompted. Your browser should download a JSON file.</div><span class="num">5</span><div>Return to Fourth &amp; Goal → Fantasy and select that JSON file under <b>Choose ESPN export JSON</b>.</div></div>
   <div class="good">The exporter makes read-only requests to ESPN using your browser's existing signed-in session. It never reads, displays, copies or transmits your password or cookie values. The downloaded JSON stays on your computer until you select it for import.</div>
@@ -49,5 +58,62 @@
     catch(_){field.focus();field.select();status.textContent='Clipboard access was blocked. The bookmarklet text is selected below; press ⌘ + C to copy it.';}
   });
   document.getElementById('selectCode').addEventListener('click',()=>{field.focus();field.select();status.textContent='Bookmarklet text selected. Press ⌘ + C, then paste it into a new bookmark URL field.';});
+
+  const trackerSource = `(async()=>{
+try{
+  if(location.hostname!=='fantasy.espn.com'&&!location.hostname.endsWith('.fantasy.espn.com')){alert('Open your signed-in ESPN Fantasy league page first, then click the ESPN Live Score Tracker bookmark.');return;}
+  const trackerKey='__fourthGoalLiveScoreTracker';
+  const active=window[trackerKey];
+  if(active){
+    clearInterval(active.timer);
+    try{await active.tick();}catch(error){console.warn('Final ESPN score sample failed:',error);}
+    active.payload.exportedAt=new Date().toISOString();
+    active.payload.scoreSnapshots=active.samples;
+    const blob=new Blob([JSON.stringify(active.payload)],{type:'application/json'});
+    const objectUrl=URL.createObjectURL(blob);
+    const link=document.createElement('a');
+    link.href=objectUrl;
+    link.download='fourth-goal-espn-private-'+active.leagueId+'-'+active.season+'-week-'+active.week+'-live.json';
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
+    window[trackerKey]=null;
+    alert('Live score capture stopped. Downloaded '+active.samples.length+' matchup score samples. Import this JSON file into Fourth & Goal → Fantasy.');
+    return;
+  }
+  const page=new URL(location.href);
+  let leagueId=page.searchParams.get('leagueId')||((location.pathname.match(/league\\/(\\d+)/)||[])[1]||'');
+  if(!leagueId)leagueId=prompt('Enter your ESPN League ID:');
+  if(!leagueId||!/^[0-9]+$/.test(leagueId))throw new Error('A numeric ESPN league ID is required.');
+  let season=Number(page.searchParams.get('seasonId')||page.searchParams.get('season')||new Date().getFullYear());
+  const seasonText=prompt('ESPN season year:',String(season));if(seasonText===null)return;season=Number(seasonText);
+  if(!Number.isInteger(season)||season<2018||season>new Date().getFullYear()+1)throw new Error('Invalid season year.');
+  const base='https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/'+season+'/segments/0/leagues/'+leagueId;
+  async function read(views,params={}){const url=new URL(base);views.forEach(view=>url.searchParams.append('view',view));Object.entries(params).forEach(([key,value])=>url.searchParams.set(key,String(value)));const response=await fetch(url.toString(),{credentials:'include',cache:'no-store',headers:{Accept:'application/json'}});if(!response.ok)throw new Error('ESPN returned HTTP '+response.status+'. Confirm that you are signed in and can open this league.');const text=await response.text();try{return JSON.parse(text)}catch(_){throw new Error('ESPN returned a non-JSON response. Your session may have expired or ESPN changed its response.');}}
+  const statusData=await read(['mStatus','mSettings']);
+  const guess=Number(statusData.status?.currentScoringPeriod||statusData.status?.currentMatchupPeriod||page.searchParams.get('scoringPeriodId')||1);
+  const weekText=prompt('Scoring week to track:',String(guess));if(weekText===null)return;const week=Number(weekText);if(!Number.isInteger(week)||week<1||week>25)throw new Error('Invalid scoring week.');
+  const core=await read(['mTeam','mRoster','mSettings','mStandings','mStatus','mSchedule'],{scoringPeriodId:week});
+  if(!Array.isArray(core.teams)||!core.teams.length)throw new Error('ESPN did not return league teams. Check the league, season and access.');
+  const matchupData=await read(['mMatchupScore'],{scoringPeriodId:week,matchupPeriodId:week});
+  const mergeSchedule=(baseSchedule,extraSchedule)=>{const extra=new Map((extraSchedule||[]).map(game=>[String(game.matchupPeriodId||week)+':'+String(game.home?.teamId||'')+':'+String(game.away?.teamId||''),game]));return (baseSchedule||[]).map(game=>{const key=String(game.matchupPeriodId||week)+':'+String(game.home?.teamId||'')+':'+String(game.away?.teamId||'');const fresh=extra.get(key);return fresh?{...game,...fresh,home:{...(game.home||{}),...(fresh.home||{})},away:{...(game.away||{}),...(fresh.away||{})}}:game;});};
+  core.schedule=mergeSchedule(core.schedule,matchupData.schedule);
+  const initialBoxscore=await read(['mBoxscore','mLiveScoring'],{scoringPeriodId:week,matchupPeriodId:week});
+  const tracker={leagueId,season,week,samples:[],busy:false,timer:null,payload:{format:'fourth-goal-private-espn-league',version:1,exportedAt:new Date().toISOString(),leagueId,season,currentWeek:week,leagueName:core.settings?.name||('ESPN League '+leagueId),core,matchups:core.schedule||[],boxscore:initialBoxscore}};
+  function capture(box){(Array.isArray(box?.schedule)?box.schedule:[]).forEach(game=>{if(Number(game.matchupPeriodId||week)!==week)return;const homeId=String(game.home?.teamId||''),awayId=String(game.away?.teamId||'');const homePoints=Number(game.home?.totalPoints??game.home?.points),awayPoints=Number(game.away?.totalPoints??game.away?.points);if(!homeId||!awayId||!Number.isFinite(homePoints)||!Number.isFinite(awayPoints))return;tracker.samples.push({week,key:String(week)+':'+homeId+':'+awayId,homeTeamId:homeId,awayTeamId:awayId,homePoints,awayPoints,at:Date.now()});});}
+  capture(initialBoxscore);
+  tracker.tick=async()=>{if(tracker.busy)return;tracker.busy=true;try{const latest=await read(['mBoxscore','mLiveScoring'],{scoringPeriodId:week,matchupPeriodId:week});tracker.payload.boxscore=latest;tracker.payload.matchups=mergeSchedule(tracker.payload.matchups,latest.schedule);tracker.payload.core.schedule=tracker.payload.matchups;capture(latest);}finally{tracker.busy=false;}};
+  window[trackerKey]=tracker;
+  tracker.timer=setInterval(()=>tracker.tick().catch(error=>console.warn('Fourth & Goal score tracker:',error)),90000);
+  alert('ESPN Live Score Tracker started for Week '+week+'. It will capture every matchup about every 90 seconds. Keep this ESPN tab open. When you are ready to finish, click the same bookmark again to download the timeline JSON.');
+}catch(error){alert('ESPN live score tracking could not start: '+(error?.message||error)+'\n\nNo password or cookie values were read or stored.');}})();`;
+  const trackerBookmarklet='javascript:'+trackerSource.replace(/[\r\n]/g,'').trim();
+  const trackerField=document.getElementById('trackerBookmarkletCode');
+  const trackerStatus=document.getElementById('trackerCopyStatus');
+  trackerField.value=trackerBookmarklet;
+  document.getElementById('copyTrackerBookmarklet').addEventListener('click',async()=>{
+    try{await navigator.clipboard.writeText(trackerBookmarklet);trackerStatus.textContent='Copied. Add a separate Chrome bookmark named ESPN Live Score Tracker and paste this into its URL field.';}
+    catch(_){trackerField.focus();trackerField.select();trackerStatus.textContent='Clipboard access was blocked. The tracker bookmarklet is selected below; press ⌘ + C to copy it.';}
+  });
+  document.getElementById('selectTrackerCode').addEventListener('click',()=>{trackerField.focus();trackerField.select();trackerStatus.textContent='Tracker bookmarklet selected. Press ⌘ + C, then paste it into a new bookmark URL field.';});
 })();
 </script></body></html>

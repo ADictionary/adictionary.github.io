@@ -45,6 +45,7 @@
     league: null,
     selectedTeamId: '',
     selectedWeek: 1,
+    selectedMatchupKey: '',
     personalRoster: [],
     message: '',
     messageType: '',
@@ -365,7 +366,7 @@
       teams,matchups,weeklyPlayerPoints:weekPoints,
       scoringRules:core.settings?.scoringSettings?.scoringItems || [],
       settings:core.settings || {},status:core.status || {},
-      privateImport:!!meta.privateImport,boxscoreWeek:week
+      privateImport:!!meta.privateImport,boxscoreWeek:week,scoreHistory:Array.isArray(meta.scoreHistory)?meta.scoreHistory:[]
     };
   }
   async function loadPublicLeague(leagueId, season, requestedWeek) {
@@ -377,12 +378,24 @@
     return normalizeLeague(core,boxscore,{leagueId,season,week,matchups:core.schedule || []});
   }
   function importLeagueData(league) {
+    const previous = state.league;
+    const sameLeague = previous && String(previous.leagueId) === String(league.leagueId) && Number(previous.season) === Number(league.season);
+    // Merge previously saved samples with any captured directly by the private ESPN tracker.
+    const combinedHistory = [
+      ...(sameLeague && Array.isArray(previous.scoreHistory) ? previous.scoreHistory : []),
+      ...(Array.isArray(league.scoreHistory) ? league.scoreHistory : [])
+    ];
+    const uniqueHistory = new Map();
+    combinedHistory.forEach(item => uniqueHistory.set(`${Number(item.week)}:${item.key}:${Number(item.at)}`,item));
+    league.scoreHistory = [...uniqueHistory.values()].sort((a,b)=>Number(a.at)-Number(b.at)).slice(-2400);
     state.league = league;
     if (!league.teams.some(team => String(team.id) === String(state.selectedTeamId))) state.selectedTeamId = String(league.teams[0]?.id || '');
     state.selectedWeek = Number(league.boxscoreWeek || league.currentWeek || 1);
     state.season = league.season;
     const selected = league.teams.find(team => String(team.id) === String(state.selectedTeamId)) || league.teams[0];
     state.personalRoster = selected ? structuredCloneSafe(selected.roster) : [];
+    state.selectedMatchupKey = '';
+    recordScoreSnapshot(league, state.selectedWeek, Date.parse(league.importedAt) || Date.now());
     save();
     renderAll();
   }
@@ -393,7 +406,7 @@
       setStatus('Importing private ESPN league…'); setMessage('Reading the private league export…');
       const payload = JSON.parse(await file.text());
       if (payload.format !== 'fourth-goal-private-espn-league' || Number(payload.version) !== 1) throw new Error('This is not a supported Fourth & Goal ESPN league export. Use the export helper to create a JSON file.');
-      const league = normalizeLeague(payload.core,payload.boxscore,{leagueId:payload.leagueId,season:payload.season,week:payload.currentWeek,matchups:payload.matchups || payload.core?.schedule || [],leagueName:payload.leagueName,exportedAt:payload.exportedAt,privateImport:true});
+      const league = normalizeLeague(payload.core,payload.boxscore,{leagueId:payload.leagueId,season:payload.season,week:payload.currentWeek,matchups:payload.matchups || payload.core?.schedule || [],leagueName:payload.leagueName,exportedAt:payload.exportedAt,privateImport:true,scoreHistory:Array.isArray(payload.scoreSnapshots)?payload.scoreSnapshots:[]});
       importLeagueData(league);
       setMessage(`Imported ${league.teams.length} teams from ${league.name}. Team rosters, standings and matchups are ready.`);
       setStatus('Private league imported');
@@ -431,6 +444,76 @@
   function matchupFor(teamId, week) { return state.league?.matchups.find(game => Number(game.matchupPeriodId) === Number(week) && (String(game.home.teamId) === String(teamId) || String(game.away.teamId) === String(teamId))) || null; }
   function pointsLabel(side, isComplete) { return isComplete ? (safeNumber(side.totalPoints) !== null ? `${displayActual(side.totalPoints)} actual` : 'Final score unavailable') : safeNumber(side.totalPoints) !== null ? `${displayActual(side.totalPoints)} live` : 'Not started'; }
   function matchSideName(side) { return state.league?.teams.find(team => String(team.id) === String(side.teamId))?.name || `Team ${side.teamId}`; }
+  function matchupKey(matchup) { return `${Number(matchup.matchupPeriodId)}:${String(matchup.home.teamId)}:${String(matchup.away.teamId)}`; }
+  function recordScoreSnapshot(league, week, at = Date.now()) {
+    if (!league) return;
+    if (!Array.isArray(league.scoreHistory)) league.scoreHistory = [];
+    const timestamp = Number(at) || Date.now();
+    (league.matchups || []).filter(matchup => Number(matchup.matchupPeriodId) === Number(week)).forEach(matchup => {
+      const homePoints = safeNumber(matchup.home?.totalPoints);
+      const awayPoints = safeNumber(matchup.away?.totalPoints);
+      if (homePoints === null || awayPoints === null) return;
+      const key = matchupKey(matchup);
+      const previous = league.scoreHistory.filter(item => Number(item.week) === Number(week) && item.key === key).sort((a,b) => Number(a.at)-Number(b.at)).pop();
+      const sample = { week:Number(week),key,homeTeamId:String(matchup.home.teamId),awayTeamId:String(matchup.away.teamId),homePoints,awayPoints,at:timestamp };
+      // Ignore an older export re-imported later; its data is not a new live observation.
+      if (previous && timestamp <= Number(previous.at)) return;
+      // Replace near-identical refreshes instead of filling the chart with duplicate taps.
+      if (previous && Math.abs(timestamp-Number(previous.at)) < 20000) {
+        const index = league.scoreHistory.indexOf(previous);
+        if (index >= 0) league.scoreHistory[index] = sample;
+      } else league.scoreHistory.push(sample);
+    });
+    // Keep the browser's saved league compact while retaining several weeks of samples.
+    if (league.scoreHistory.length > 2400) league.scoreHistory = league.scoreHistory.slice(-2400);
+  }
+  function matchupHistory(matchup, week) {
+    const key = matchupKey(matchup);
+    return (state.league?.scoreHistory || []).filter(item => Number(item.week) === Number(week) && item.key === key && Number.isFinite(Number(item.at)))
+      .sort((a,b) => Number(a.at)-Number(b.at));
+  }
+  function localTimeLabel(timestamp) {
+    return new Date(Number(timestamp)).toLocaleTimeString([], { hour:'numeric', minute:'2-digit' });
+  }
+  function scoreChartSvg(samples, homeName, awayName) {
+    if (!samples.length) return '<div class="chart-empty">No score samples yet. Refresh or import the matchup again after the live scores change.</div>';
+    const width=760, height=270, left=54, right=24, top=22, bottom=43;
+    const plotW=width-left-right, plotH=height-top-bottom;
+    const values=samples.flatMap(item => [Number(item.homePoints),Number(item.awayPoints)]).filter(Number.isFinite);
+    const yMax=Math.max(10,Math.ceil(Math.max(...values,10)/20)*20);
+    const first=Number(samples[0].at), last=Number(samples[samples.length-1].at);
+    const minX=first===last?first-30000:first, maxX=first===last?last+30000:last;
+    const x=timestamp=>left+((Number(timestamp)-minX)/(maxX-minX))*plotW;
+    const y=value=>top+plotH-(Number(value)/yMax)*plotH;
+    const pathFor=field=>samples.map((item,index)=>`${index?'L':'M'} ${x(item.at).toFixed(1)} ${y(item[field]).toFixed(1)}`).join(' ');
+    const grid=[0,yMax/2,yMax].map(value=>`<g><line x1="${left}" y1="${y(value)}" x2="${width-right}" y2="${y(value)}" class="chart-gridline"/><text x="${left-12}" y="${y(value)+4}" class="chart-axis-label" text-anchor="end">${value.toFixed(0)}</text></g>`).join('');
+    const circles=(field,klass)=>samples.map(item=>`<circle class="${klass}-dot" cx="${x(item.at).toFixed(1)}" cy="${y(item[field]).toFixed(1)}" r="${samples.length===1?6:3.5}"><title>${localTimeLabel(item.at)} · ${Number(item[field]).toFixed(1)} points</title></circle>`).join('');
+    const startLabel=localTimeLabel(first), endLabel=localTimeLabel(last);
+    const lines=samples.length>1?`<path d="${pathFor('homePoints')}" class="chart-home-line"/><path d="${pathFor('awayPoints')}" class="chart-away-line"/>`:'';
+    return `<svg class="score-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Fantasy score trend for ${esc(homeName)} and ${esc(awayName)}. Vertical axis shows fantasy points, horizontal axis shows captured time.">${grid}<line x1="${left}" y1="${top}" x2="${left}" y2="${height-bottom}" class="chart-axis"/><line x1="${left}" y1="${height-bottom}" x2="${width-right}" y2="${height-bottom}" class="chart-axis"/>${lines}${circles('homePoints','home')}${circles('awayPoints','away')}<text x="${left}" y="${height-12}" class="chart-axis-label">${esc(startLabel)}</text><text x="${width-right}" y="${height-12}" class="chart-axis-label" text-anchor="end">${esc(endLabel)}</text></svg>`;
+  }
+  function renderSideScoring(side) {
+    const players=(side.roster || []).slice().sort((a,b)=>{
+      const rank=player=>({qb:0,rb1:1,rb2:2,wr1:3,wr2:4,te:5,flex:6,dst:7,k:8}[player.slotId] ?? 20);
+      return rank(a)-rank(b) || String(a.name).localeCompare(String(b.name));
+    });
+    if (!players.length) return '<p class="chart-empty compact">ESPN did not include the player-level matchup box score in this export.</p>';
+    return `<div class="matchup-player-list">${players.map(player=>`<div class="matchup-player-row">${avatar(player)}<span><b>${esc(player.name)}</b><small>${esc(player.position)}${player.slotId?` · ${esc(player.slotId.toUpperCase())}`:''}</small></span><strong>${safeNumber(player.weekPoints)===null?'—':fmt(player.weekPoints)}</strong></div>`).join('')}</div>`;
+  }
+  function renderMatchupDetail(matchup, week) {
+    const home=state.league.teams.find(team=>String(team.id)===String(matchup.home.teamId));
+    const away=state.league.teams.find(team=>String(team.id)===String(matchup.away.teamId));
+    const history=matchupHistory(matchup,week);
+    const complete=matchupComplete(matchup,week,state.league.currentWeek);
+    const scoreText=complete?'FINAL':(safeNumber(matchup.home.totalPoints)!==null || safeNumber(matchup.away.totalPoints)!==null?'LIVE SCORE':'UPCOMING');
+    const homeScore=displayActual(matchup.home.totalPoints), awayScore=displayActual(matchup.away.totalPoints);
+    const note=history.length>1
+      ? `${state.league.privateImport?'ESPN Live Score Tracker':'Fourth & Goal'} captured ${history.length} score samples, from ${new Date(history[0].at).toLocaleString()} to ${new Date(history[history.length-1].at).toLocaleString()}.`
+      : state.league.privateImport
+        ? 'One snapshot is saved. Install the ESPN Live Score Tracker from the private-league export helper, then start and stop it from your ESPN league page to capture the full game trend.'
+        : 'One snapshot is saved. Keep this League & Matchups page open during games; public leagues are checked periodically to build the trend.';
+    $('matchupDetail').innerHTML=`<div class="matchup-detail-header"><div><div class="eyebrow">MATCHUP CENTRE · WEEK ${week}</div><h3>${esc(home?.name || `Team ${matchup.home.teamId}`)} <span>vs</span> ${esc(away?.name || `Team ${matchup.away.teamId}`)}</h3></div><span class="matchup-status">${scoreText}</span></div><div class="matchup-scoreboard"><div><small>${esc(home?.name || 'Home')}</small><strong>${homeScore}</strong></div><div class="scoreboard-divider">—</div><div><small>${esc(away?.name || 'Away')}</small><strong>${awayScore}</strong></div></div><div class="chart-heading"><div><div class="eyebrow">SCORE PROGRESSION</div><h4>Live matchup graph</h4></div><span class="chart-sample-count">${history.length} ${history.length===1?'snapshot':'snapshots'}</span></div><div class="chart-legend"><span><i class="legend-dot home"></i>${esc(home?.name || 'Home')}</span><span><i class="legend-dot away"></i>${esc(away?.name || 'Away')}</span><small>Fantasy points · local capture time</small></div>${scoreChartSvg(history,home?.name || 'Home',away?.name || 'Away')}<p class="chart-note">${esc(note)}</p><div class="matchup-boxscore-grid"><section><div class="eyebrow">${esc(home?.name || 'HOME')} · PLAYER POINTS</div>${renderSideScoring(matchup.home)}</section><section><div class="eyebrow">${esc(away?.name || 'AWAY')} · PLAYER POINTS</div>${renderSideScoring(matchup.away)}</section></div>`;
+  }
 
   function renderMatchupCard(matchup, week, selectedTeamId) {
     const home = state.league.teams.find(team => String(team.id) === String(matchup.home.teamId));
@@ -446,11 +529,13 @@
         ? winChance(homeProjected,awayProjected,false)
         : null;
     const mine = String(home.id) === String(selectedTeamId) || String(away.id) === String(selectedTeamId);
+    const key = matchupKey(matchup);
+    const selected = key === state.selectedMatchupKey;
     const center = finalWithActual
       ? (chance === 1 ? 'FINAL · HOME W' : chance === 0 ? 'FINAL · AWAY W' : 'FINAL · TIE')
       : complete ? 'FINAL · SCORE UNAVAILABLE'
         : chance !== null ? `${Math.round(chance*100)}% · ${Math.round((1-chance)*100)}%` : 'Projection pending';
-    return `<article class="matchup-card${mine?' mine':''}"><div class="matchup-side"><b>${esc(home.name)}</b><strong>${displayActual(matchup.home.totalPoints)}</strong><small>${pointsLabel(matchup.home,complete)}</small></div><div class="matchup-mid"><small>WEEK ${week}</small><b>${esc(center)}</b>${!complete&&chance!==null?`<span>Model estimate</span>`:''}</div><div class="matchup-side away"><b>${esc(away.name)}</b><strong>${displayActual(matchup.away.totalPoints)}</strong><small>${pointsLabel(matchup.away,complete)}</small></div></article>`;
+    return `<button class="matchup-card${mine?' mine':''}${selected?' selected':''}" type="button" data-matchup-key="${esc(key)}" aria-pressed="${selected}" aria-controls="matchupDetail"><span class="matchup-side"><b>${esc(home.name)}</b><strong>${displayActual(matchup.home.totalPoints)}</strong><small>${pointsLabel(matchup.home,complete)}</small></span><span class="matchup-mid"><small>WEEK ${week}</small><b>${esc(center)}</b>${!complete&&chance!==null?`<span>Model estimate</span>`:''}<em>View matchup ↗</em></span><span class="matchup-side away"><b>${esc(away.name)}</b><strong>${displayActual(matchup.away.totalPoints)}</strong><small>${pointsLabel(matchup.away,complete)}</small></span></button>`;
   }
   function renderLeague() {
     const league = state.league;
@@ -470,6 +555,17 @@
     $('matchupCount').textContent = `${weekMatchups.length} matchups`;
     $('matchupList').innerHTML = weekMatchups.length ? weekMatchups.map(matchup => renderMatchupCard(matchup,week,selected?.id)).join('') : '<p class="empty-cell">No matchups were included for this week. This could be a bye or a playoff schedule gap.</p>';
     const userMatchup = matchupFor(selected?.id,week);
+    let activeMatchup = weekMatchups.find(matchup => matchupKey(matchup) === state.selectedMatchupKey) || userMatchup || weekMatchups[0] || null;
+    if (activeMatchup) {
+      state.selectedMatchupKey = matchupKey(activeMatchup);
+      $('matchupList').innerHTML = weekMatchups.map(matchup => renderMatchupCard(matchup,week,selected?.id)).join('');
+      renderMatchupDetail(activeMatchup,week);
+      $('matchupDetail').hidden = false;
+    } else {
+      $('matchupDetail').hidden = true;
+      $('matchupDetail').innerHTML = '';
+      state.selectedMatchupKey = '';
+    }
     const myPanel = $('myMatchupCard');
     if (!userMatchup) myPanel.innerHTML = `<div class="eyebrow">YOUR MATCHUP · WEEK ${week}</div><h3>No matchup found for ${esc(selected?.name || 'your team')}</h3><p class="model-note">This may be a bye or a week without a scheduled head-to-head matchup.</p>`;
     else {
@@ -502,14 +598,14 @@
     if (!player) return `<div class="lineup-slot"><div class="slot-top"><span class="slot-name">${slot.label}</span><span class="slot-eligibility">${slot.eligible.join(' / ')}</span></div><div class="empty-slot"><span class="empty-plus">＋</span><span>Open position</span></div>${select}</div>`;
     return `<div class="lineup-slot filled"><div class="slot-top"><span class="slot-name">${slot.label}</span><span class="slot-eligibility">${slot.id==='flex'?'RB / WR / TE':slot.eligible.join(' / ')}</span></div><div class="lineup-person">${avatar(player)}<span class="player-text"><b>${esc(player.name)}</b><small>${esc(player.position)}${player.teamAbbr?` · ${esc(player.teamAbbr)}`:''}</small></span><strong class="player-points">${pts===null?'—':fmt(pts)}<small>PTS</small></strong></div>${select}</div>`;
   }
-  async function refreshLeagueAppliedScores() {
+  async function refreshLeagueAppliedScores({ quiet = false } = {}) {
     const league = state.league;
     if (!league) {
-      setMessage('Connect or import your ESPN league to retrieve fantasy totals using its scoring settings.', 'error');
+      if (!quiet) setMessage('Connect or import your ESPN league to retrieve fantasy totals using its scoring settings.', 'error');
       return false;
     }
     if (league.privateImport) {
-      setMessage('For a private league, refresh scores by running the private ESPN export helper again for the week you want, then import the new JSON file. This keeps your league-specific D/ST and kicker scoring accurate.');
+      if (!quiet) setMessage('For a private league, run the ESPN export helper again during the game and import the new JSON file. Each import adds another score sample to the matchup graphs.');
       return false;
     }
 
@@ -546,14 +642,18 @@
         const key = `${week}:${matchup.home.teamId}:${matchup.away.teamId}`;
         const fresh = freshMap.get(key);
         if (!fresh) return matchup;
-        const updateSide = (oldSide, freshSide) => ({
-          ...oldSide,
-          totalPoints: safeNumber(freshSide?.totalPoints ?? freshSide?.points) ?? oldSide.totalPoints,
-          totalProjectedPointsLive: safeNumber(freshSide?.totalProjectedPointsLive) ?? oldSide.totalProjectedPointsLive,
-          totalProjectedPoints: safeNumber(freshSide?.totalProjectedPoints) ?? oldSide.totalProjectedPoints,
-          winner: typeof freshSide?.winner === 'boolean' ? freshSide.winner : oldSide.winner,
-          roster: (oldSide.roster || []).map(player => { apply(player); return player; })
-        });
+        const updateSide = (oldSide, freshSide) => {
+          const freshEntries = rosterEntriesFromSide(freshSide || {});
+          const freshRoster = freshEntries.length ? sideSnapshot(freshSide, points).roster : (oldSide.roster || []).map(player => { apply(player); return player; });
+          return {
+            ...oldSide,
+            totalPoints: safeNumber(freshSide?.totalPoints ?? freshSide?.points) ?? oldSide.totalPoints,
+            totalProjectedPointsLive: safeNumber(freshSide?.totalProjectedPointsLive) ?? oldSide.totalProjectedPointsLive,
+            totalProjectedPoints: safeNumber(freshSide?.totalProjectedPoints) ?? oldSide.totalProjectedPoints,
+            winner: typeof freshSide?.winner === 'boolean' ? freshSide.winner : oldSide.winner,
+            roster:freshRoster
+          };
+        };
         return {
           ...matchup,
           home: updateSide(matchup.home, fresh.home),
@@ -563,15 +663,16 @@
       });
       league.weeklyPlayerPoints = points;
       league.boxscoreWeek = week;
+      recordScoreSnapshot(league, week);
       save();
       renderMyTeam();
       renderLeague();
       setStatus(`Week ${week} scores refreshed`);
-      setMessage(`Refreshed ${Object.keys(points).length} ESPN applied fantasy totals for Week ${week}. D/ST and kicker scores reflect your league's scoring rules.`);
+      if (!quiet) setMessage(`Refreshed ${Object.keys(points).length} ESPN applied fantasy totals for Week ${week}. A new score sample has been added to each matchup graph.`);
       return true;
     } catch (error) {
       setStatus('Score refresh unavailable');
-      setMessage(`${error.message} ESPN may not have published the selected week's actuals yet.`, 'error');
+      if (!quiet) setMessage(`${error.message} ESPN may not have published the selected week's actuals yet.`, 'error');
       return false;
     }
   }
@@ -694,8 +795,10 @@
     const savedTheme = localStorage.getItem('fg-fantasy-theme'); if (savedTheme) document.documentElement.dataset.theme=savedTheme;
     $('publicLeagueForm').addEventListener('submit',onPublicLeagueSubmit);
     $('privateLeagueFile').addEventListener('change',event => importPrivateFile(event.target.files?.[0]));
-    $('selectedLeagueTeam').addEventListener('change',() => { state.selectedTeamId=$('selectedLeagueTeam').value; save(); renderLeague(); importSelectedLeagueTeam(); });
-    $('matchupWeek').addEventListener('change',() => { state.selectedWeek=Number($('matchupWeek').value); save(); renderLeague(); });
+    $('selectedLeagueTeam').addEventListener('change',() => { state.selectedTeamId=$('selectedLeagueTeam').value; state.selectedMatchupKey=''; save(); renderLeague(); importSelectedLeagueTeam(); });
+    $('matchupWeek').addEventListener('change',() => { state.selectedWeek=Number($('matchupWeek').value); state.selectedMatchupKey=''; save(); renderLeague(); });
+    $('matchupList').addEventListener('click',event => { const card=event.target.closest('[data-matchup-key]'); if (!card) return; state.selectedMatchupKey=card.dataset.matchupKey; renderLeague(); $('matchupDetail').scrollIntoView({behavior:'smooth',block:'nearest'}); });
+    $('refreshMatchupScores').addEventListener('click',() => refreshLeagueAppliedScores());
     $('forgetLeague').addEventListener('click',() => { state.league=null; state.selectedTeamId=''; state.selectedWeek=1; save(); renderAll(); setStatus('Fantasy workspace'); setMessage('Imported league removed. Your personal roster has been kept.'); });
     $('reexportHint').addEventListener('click',() => setMessage('To refresh a private league, open the export helper, run the bookmarklet again from your signed-in ESPN league and import the newly downloaded JSON file.'));
     $('refreshFantasy').addEventListener('click',() => { refreshLeagueAppliedScores(); });
@@ -716,6 +819,14 @@
     document.querySelector('[data-go-import]')?.addEventListener('click',() => { showTab('my-team'); $('leagueId').focus(); });
     renderAll();
     if (state.league) { setStatus('Saved league loaded'); }
+    // Public leagues can add genuine score snapshots while this page remains open.
+    // Private league imports stay local and are refreshed through the ESPN export helper.
+    setInterval(() => {
+      const league=state.league;
+      if (!league || league.privateImport || state.activeTab!=='league' || document.hidden) return;
+      if (Number(state.selectedWeek)!==Number(league.currentWeek)) return;
+      refreshLeagueAppliedScores({quiet:true});
+    }, 90000);
   }
   init();
 })();
