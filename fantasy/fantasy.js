@@ -315,6 +315,25 @@
     const owners = ownerIds.map(id => members.find(member => String(member.id) === id)).filter(Boolean).map(member => [member.firstName,member.lastName].filter(Boolean).join(' ') || member.displayName || member.id);
     return { id:String(team.id),name:team.name || [team.location,team.nickname].filter(Boolean).join(' ') || `Team ${team.id}`,owners,record:recordFor(team),roster };
   }
+  function mergeMatchupSide(scheduleSide = {}, boxSide = {}) {
+    // ESPN's mBoxscore/mLiveScoring view often includes the current score and
+    // roster, but can omit projections that were returned by mSchedule /
+    // mMatchupScore. A shallow spread alone would erase those schedule values.
+    const merged = { ...scheduleSide, ...boxSide };
+    ['totalPoints', 'points', 'totalProjectedPointsLive', 'totalProjectedPoints'].forEach(field => {
+      const liveValue = safeNumber(boxSide[field]);
+      const scheduledValue = safeNumber(scheduleSide[field]);
+      const isProjection = field.toLowerCase().includes('projected');
+      const isEmptyProjectionPlaceholder = isProjection && liveValue === 0 && scheduledValue !== null && scheduledValue > 0;
+      if (liveValue !== null && !isEmptyProjectionPlaceholder) merged[field] = liveValue;
+      else if (scheduledValue !== null) merged[field] = scheduledValue;
+    });
+    if (boxSide.winner === undefined || boxSide.winner === null) {
+      if (scheduleSide.winner !== undefined) merged.winner = scheduleSide.winner;
+    }
+    return merged;
+  }
+
   function normalizeLeague(core, boxscore, meta = {}) {
     if (!core || !Array.isArray(core.teams) || !core.teams.length) throw new Error('The ESPN response did not contain league teams. Check the league ID, season and access.');
     const season = Number(meta.season || core.seasonId || state.season);
@@ -331,9 +350,9 @@
       const live = boxMap.get(key) || game;
       return {
         matchupPeriodId:period,
-        home:sideSnapshot(live.home || game.home || {},weekPoints),
-        away:sideSnapshot(live.away || game.away || {},weekPoints),
-        rawStatus:game.status || live.status || null,
+        home:sideSnapshot(mergeMatchupSide(game.home || {}, live.home || {}),weekPoints),
+        away:sideSnapshot(mergeMatchupSide(game.away || {}, live.away || {}),weekPoints),
+        rawStatus:live.status || game.status || null,
         playoffTierType:game.playoffTierType || null,
         bye:!game.home || !game.away
       };
