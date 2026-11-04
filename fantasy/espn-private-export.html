@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark light">
+<title>Private ESPN League Export · Fourth &amp; Goal</title>
+<style>
+:root{color-scheme:dark;--bg:#0b1219;--panel:#14212c;--line:#2d4351;--text:#edf3f6;--muted:#91a3b0;--green:#57d6a0;--amber:#efc36f}*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 12% 0,#173b31,transparent 42%),var(--bg);color:var(--text);font:14px/1.6 system-ui,sans-serif}.wrap{max-width:780px;margin:42px auto;padding:0 19px}.eyebrow{color:var(--green);font-size:10px;font-weight:900;letter-spacing:.16em;text-transform:uppercase}h1{font-size:clamp(28px,5vw,42px);line-height:1.08;letter-spacing:-.04em;margin:8px 0 12px}.muted{color:var(--muted)}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;margin:16px 0}.card h2{font-size:16px;margin:0 0 8px}.bookmarklet{display:inline-block;background:var(--green);color:#09271e;padding:12px 16px;border-radius:10px;font-weight:900;text-decoration:none;cursor:grab}.steps{display:grid;grid-template-columns:26px 1fr;gap:9px;margin:12px 0}.num{width:25px;height:25px;display:grid;place-items:center;border-radius:8px;background:#203b34;color:var(--green);font-weight:900}.good,.warning{padding:11px 13px;border-radius:9px;font-size:12px;margin-top:12px}.good{background:#122c25;border-left:3px solid var(--green);color:#c9ebdc}.warning{background:#352b19;border-left:3px solid var(--amber);color:#f0dfbc}.small{font-size:11px;color:var(--muted)}button{background:#243845;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:8px 11px;font-weight:800;cursor:pointer}.code{display:block;max-height:130px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;background:#071017;border:1px solid var(--line);border-radius:9px;padding:11px;color:#c9e8dc;font:10px/1.5 ui-monospace,monospace}.footer{font-size:10px;color:var(--muted);padding:12px 0 35px}
+</style></head>
+<body><main class="wrap">
+<div class="eyebrow">Fourth &amp; Goal · Fantasy tools</div>
+<h1>Private ESPN league export</h1>
+<p class="muted">Create a local JSON file containing your ESPN league's teams, rosters, standings, full matchup schedule and one selected week's player box scores.</p>
+<section class="card"><h2>1. Add the exporter to your bookmarks</h2><p>Drag the green link below onto your browser's bookmarks bar. In Chrome, show the bar with <b>⌘ + Shift + B</b>. If dragging is blocked, create a new bookmark and paste the link address as its URL.</p><p><a class="bookmarklet" id="bookmarklet" href="#" draggable="true">Export private ESPN league</a></p><details><summary class="small">If bookmark dragging does not work</summary><p class="small">Right-click the green link and choose Copy Link Address. Create a new bookmark manually, paste that address into its URL/location field, and save it.</p></details></section>
+<section class="card"><h2>2. Export while signed in to ESPN</h2><div class="steps"><span class="num">1</span><div>Open ESPN Fantasy Football in the same browser and sign in normally. Navigate to your private league page.</div><span class="num">2</span><div>Click the <b>Export private ESPN league</b> bookmark.</div><span class="num">3</span><div>Confirm the season and scoring week. The browser downloads a JSON file.</div><span class="num">4</span><div>Open <b>Fourth &amp; Goal → Fantasy → Import ESPN export</b> and select that file.</div></div><div class="good">This is a read-only export. Your browser sends its existing ESPN session to ESPN automatically; the bookmarklet never reads, displays, stores or transmits your password or cookie values. The downloaded JSON stays on your computer until you choose it for import.</div></section>
+<section class="card"><h2>3. Privacy and compatibility</h2><div class="warning">ESPN's Fantasy API is unofficial and can change. If ESPN blocks the request or your session expires, refresh your ESPN league page, sign in normally and try again. Never paste session cookies or private authentication tokens into a website or chat.</div><p class="small">The JSON includes private team names, owners, rosters, matchup scores and player statistics. Treat it as private league data. Fourth &amp; Goal imports it locally into this browser; it is not uploaded to a server.</p></section>
+<p class="footer">Fourth &amp; Goal · The exporter does not change ESPN rosters, lineups, waivers, trades or league settings.</p>
+</main>
+<script>
+(function(){
+ const source = `(async()=>{try{
+ const page=new URL(location.href);
+ let leagueId=page.searchParams.get('leagueId')||((location.pathname.match(/league\/(\d+)/)||[])[1]||'');
+ if(!leagueId)leagueId=prompt('Enter your ESPN League ID:');
+ if(!leagueId||!/^[0-9]+$/.test(leagueId))throw new Error('A numeric ESPN league ID is required.');
+ let season=Number(page.searchParams.get('seasonId')||page.searchParams.get('season')||new Date().getFullYear());
+ const seasonText=prompt('ESPN season year:',String(season));if(seasonText===null)return;season=Number(seasonText);
+ if(!Number.isInteger(season)||season<2018||season>new Date().getFullYear()+1)throw new Error('Invalid season year.');
+ const base='https://lm-api-reads.fantasy.espn.com/apis/v3/games/ffl/seasons/'+season+'/segments/0/leagues/'+leagueId;
+ async function read(views,params={}){const url=new URL(base);views.forEach(v=>url.searchParams.append('view',v));Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,String(v)));const response=await fetch(url.toString(),{credentials:'include',cache:'no-store',headers:{Accept:'application/json','X-Fantasy-Platform':'kona-PROD'}});if(!response.ok)throw new Error('ESPN returned HTTP '+response.status+'. Confirm you are signed in and can open this league.');const text=await response.text();try{return JSON.parse(text)}catch(_){throw new Error('ESPN returned a non-JSON response. Your session may have expired.')}}
+ const statusData=await read(['mStatus','mSettings']);
+ const guess=Number(statusData.status?.currentScoringPeriod||statusData.status?.currentMatchupPeriod||page.searchParams.get('scoringPeriodId')||1);
+ const weekText=prompt('Scoring week to include player box scores:',String(guess));if(weekText===null)return;const week=Number(weekText);if(!Number.isInteger(week)||week<1||week>25)throw new Error('Invalid scoring week.');
+ const core=await read(['mTeam','mRoster','mSettings','mStandings','mStatus','mSchedule','mMatchupScore'],{scoringPeriodId:week});
+ if(!Array.isArray(core.teams)||!core.teams.length)throw new Error('ESPN did not return league teams. Check the league and season.');
+ const boxscore=await read(['mBoxscore','mLiveScoring'],{scoringPeriodId:week,matchupPeriodId:week});
+ const output={format:'fourth-goal-private-espn-league',version:1,exportedAt:new Date().toISOString(),leagueId,season,currentWeek:week,leagueName:core.settings?.name||('ESPN League '+leagueId),core,matchups:core.schedule||[],boxscore};
+ const blob=new Blob([JSON.stringify(output)],{type:'application/json'});const objectUrl=URL.createObjectURL(blob);const a=document.createElement('a');a.href=objectUrl;a.download='fourth-goal-espn-private-'+leagueId+'-'+season+'-week-'+week+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);alert('League export downloaded. Import the JSON file in Fourth & Goal → Fantasy.');
+ }catch(error){alert('ESPN export failed: '+(error?.message||error)+'\\n\\nNo password or cookie values were read or stored.')}})();`;
+ const bookmarklet='javascript:'+source.replace(/\\n/g,'');document.getElementById('bookmarklet').setAttribute('href',bookmarklet);
+})();
+</script></body></html>
