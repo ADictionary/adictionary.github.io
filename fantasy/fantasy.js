@@ -59,6 +59,7 @@
       if (saved && typeof saved === 'object') {
         // Reuse the original Fourth & Goal fantasy storage key and keep older roster data.
         state.league = saved.leagueData && Array.isArray(saved.leagueData.teams) ? saved.leagueData : null;
+        if (state.league && !state.league.lastUpdatedAt) state.league.lastUpdatedAt = state.league.importedAt || '';
         state.selectedTeamId = String(saved.selectedTeamId || '');
         state.selectedWeek = Number(saved.matchupWeek || saved.selectedWeek || state.league?.currentWeek || 1);
         state.personalRoster = Array.isArray(saved.players) ? saved.players : (Array.isArray(saved.personalRoster) ? saved.personalRoster : []);
@@ -82,7 +83,37 @@
     const host = $('fantasyMessage');
     if (host) { host.textContent = message; host.className = `message${type === 'error' ? ' error' : ''}`; }
   }
-  function setStatus(message) { $('dataStatus').textContent = message; }
+  function setStatus(message, kind = 'neutral') {
+    const pill = $('dataStatus');
+    if (!pill) return;
+    pill.textContent = message;
+    pill.dataset.state = kind;
+  }
+  function relativeAge(timestamp) {
+    const time = Date.parse(timestamp || '');
+    if (!Number.isFinite(time)) return 'time unknown';
+    const minutes = Math.max(0, Math.floor((Date.now() - time) / 60000));
+    if (minutes < 1) return 'just now';
+    if (minutes < 60) return `${minutes}m ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+  function updateFreshnessStatus() {
+    const league = state.league;
+    if (!league) { setStatus('Fantasy workspace', 'neutral'); return; }
+    const timestamp = league.lastUpdatedAt || league.importedAt;
+    const time = Date.parse(timestamp || '');
+    if (!Number.isFinite(time)) { setStatus('Update time unknown', 'stale'); return; }
+    const age = Date.now() - time;
+    const old = age > 30 * 60 * 1000;
+    if (league.privateImport) {
+      setStatus(`Private · ${relativeAge(timestamp)}`, old ? 'stale' : 'private');
+    } else {
+      setStatus(old ? `May be stale · ${relativeAge(timestamp)}` : `Updated ${relativeAge(timestamp)}`, old ? 'stale' : 'fresh');
+    }
+  }
   function showTab(name) {
     state.activeTab = name;
     document.querySelectorAll('.tab').forEach(button => button.classList.toggle('active', button.dataset.tab === name));
@@ -363,6 +394,7 @@
       leagueId:String(meta.leagueId || core.id || ''),season,
       name:meta.leagueName || core.settings?.name || `ESPN League ${meta.leagueId || core.id || ''}`,
       currentWeek,importedAt:meta.exportedAt || new Date().toISOString(),
+      lastUpdatedAt:meta.lastUpdatedAt || meta.exportedAt || new Date().toISOString(),
       teams,matchups,weeklyPlayerPoints:weekPoints,
       scoringRules:core.settings?.scoringSettings?.scoringItems || [],
       settings:core.settings || {},status:core.status || {},
@@ -388,6 +420,7 @@
     const uniqueHistory = new Map();
     combinedHistory.forEach(item => uniqueHistory.set(`${Number(item.week)}:${item.key}:${Number(item.at)}`,item));
     league.scoreHistory = [...uniqueHistory.values()].sort((a,b)=>Number(a.at)-Number(b.at)).slice(-2400);
+    league.lastUpdatedAt = league.lastUpdatedAt || league.importedAt || new Date().toISOString();
     state.league = league;
     if (!league.teams.some(team => String(team.id) === String(state.selectedTeamId))) state.selectedTeamId = String(league.teams[0]?.id || '');
     state.selectedWeek = Number(league.boxscoreWeek || league.currentWeek || 1);
@@ -398,19 +431,20 @@
     recordScoreSnapshot(league, state.selectedWeek, Date.parse(league.importedAt) || Date.now());
     save();
     renderAll();
+    updateFreshnessStatus();
   }
   function structuredCloneSafe(value) { try { return structuredClone(value); } catch (_) { return JSON.parse(JSON.stringify(value)); } }
   async function importPrivateFile(file) {
     if (!file) return;
     try {
-      setStatus('Importing private ESPN league…'); setMessage('Reading the private league export…');
+      setStatus('Importing private ESPN league…', 'loading'); setMessage('Reading the private league export…');
       const payload = JSON.parse(await file.text());
       if (payload.format !== 'fourth-goal-private-espn-league' || Number(payload.version) !== 1) throw new Error('This is not a supported Fourth & Goal ESPN league export. Use the export helper to create a JSON file.');
       const league = normalizeLeague(payload.core,payload.boxscore,{leagueId:payload.leagueId,season:payload.season,week:payload.currentWeek,matchups:payload.matchups || payload.core?.schedule || [],leagueName:payload.leagueName,exportedAt:payload.exportedAt,privateImport:true,scoreHistory:Array.isArray(payload.scoreSnapshots)?payload.scoreSnapshots:[]});
       importLeagueData(league);
       setMessage(`Imported ${league.teams.length} teams from ${league.name}. Team rosters, standings and matchups are ready.`);
-      setStatus('Private league imported');
-    } catch (error) { setMessage(`Could not import the ESPN file: ${error.message}`, 'error'); setStatus('Import failed'); }
+      updateFreshnessStatus();
+    } catch (error) { setMessage(`Could not import the ESPN file: ${error.message}`, 'error'); setStatus('Import failed', 'error'); }
   }
   function normalCdf(value) {
     const x = Math.abs(value),t = 1 / (1 + 0.2316419 * x),d = 0.3989423 * Math.exp(-x*x/2);
@@ -588,7 +622,8 @@
     $('standingsBody').innerHTML = standings.map((team,index) => `<tr><td><span class="rank-badge">${index+1}</span></td><td>${esc(team.name)}${team.owners?.length?`<small style="display:block;color:var(--muted)">${esc(team.owners.join(', '))}</small>`:''}</td><td>${team.record.wins}-${team.record.losses}${team.record.ties?`-${team.record.ties}`:''}</td><td>${displayActual(team.record.pointsFor)}</td><td>${displayActual(team.record.pointsAgainst)}</td></tr>`).join('');
     $('leagueRosters').innerHTML = league.teams.map(team => `<details class="team-roster"><summary><span>${esc(team.name)}</span><small>${team.record.wins}-${team.record.losses}${team.record.ties?`-${team.record.ties}`:''} · ${team.roster.length} players</small></summary><div class="team-roster-body">${team.roster.map(player => `<div class="team-roster-player">${avatar(player)}<span><b>${esc(player.name)}</b><small>${esc(player.position)}${player.teamAbbr?` · ${esc(player.teamAbbr)}`:''}${player.slotId?` · ${esc(player.slotId.toUpperCase())}`:''}</small></span><strong>${player.weekPoints === null || player.weekPoints === undefined ? '—' : fmt(player.weekPoints)}</strong></div>`).join('')}</div></details>`).join('');
     $('teamRosterCount').textContent = `${league.teams.length} teams`;
-    $('leagueFootnote').textContent = `League data imported ${new Date(league.importedAt).toLocaleString()}. ${league.privateImport ? 'Private league data is stored only in this browser. Re-export from ESPN to refresh the league.' : 'ESPN public league data may be cached or restricted. Refresh the import to update scores.'}`;
+    const updatedAt = league.lastUpdatedAt || league.importedAt;
+    $('leagueFootnote').textContent = `Last league update: ${updatedAt ? new Date(updatedAt).toLocaleString() : 'unknown'} (${relativeAge(updatedAt)}). ${league.privateImport ? 'Private league data is stored only in this browser. Re-import a fresh ESPN export to update scores.' : 'Public league scores refresh while this page is open; ESPN may delay or restrict updates.'}`;
   }
   function renderSlot(slot) {
     const players = state.personalRoster || [];
@@ -611,7 +646,7 @@
 
     const week = Number(state.selectedWeek || league.currentWeek || 1);
     const season = Number(league.season || state.season || todayYear);
-    setStatus(`Refreshing Week ${week} fantasy scores…`);
+    setStatus(`Refreshing Week ${week} fantasy scores…`, 'loading');
     try {
       const boxscore = await fetchJson(
         leagueUrl(league.leagueId, season, ['mBoxscore','mLiveScoring'], { scoringPeriodId:week, matchupPeriodId:week }),
@@ -664,14 +699,15 @@
       league.weeklyPlayerPoints = points;
       league.boxscoreWeek = week;
       recordScoreSnapshot(league, week);
+      league.lastUpdatedAt = new Date().toISOString();
       save();
       renderMyTeam();
       renderLeague();
-      setStatus(`Week ${week} scores refreshed`);
+      updateFreshnessStatus();
       if (!quiet) setMessage(`Refreshed ${Object.keys(points).length} ESPN applied fantasy totals for Week ${week}. A new score sample has been added to each matchup graph.`);
       return true;
     } catch (error) {
-      setStatus('Score refresh unavailable');
+      setStatus('Refresh unavailable', 'error');
       if (!quiet) setMessage(`${error.message} ESPN may not have published the selected week's actuals yet.`, 'error');
       return false;
     }
@@ -691,7 +727,8 @@
     $('benchTotal').textContent = total(bench);
     $('rosterCount').textContent = `${roster.length} / 17`;
     $('scoringWeek').textContent = state.league ? `W${state.league.boxscoreWeek || state.league.currentWeek}` : '—';
-    $('scoreUpdated').textContent = state.league ? `Imported ${new Date(state.league.importedAt).toLocaleDateString()}` : 'Connect ESPN or add a roster';
+    const updatedAt = state.league?.lastUpdatedAt || state.league?.importedAt;
+    $('scoreUpdated').textContent = state.league ? `Last updated ${updatedAt ? new Date(updatedAt).toLocaleString([], { dateStyle:'short', timeStyle:'short' }) : 'time unknown'}` : 'Connect ESPN or add a roster';
     $('starterSlots').innerHTML = STARTER_SLOTS.map(renderSlot).join('');
     $('benchSlots').innerHTML = BENCH_SLOTS.map(renderSlot).join('') + renderSlot(IR_SLOT);
     $('rosterTable').innerHTML = roster.length ? roster.map((player,index) => `<tr><td><div class="fantasy-player-cell">${avatar(player)}<span><b>${esc(player.name)}</b><small>${esc(player.teamAbbr || 'NFL')}</small></span></div></td><td><span class="slot-chip">${esc(player.position)}</span></td><td><span class="slot-chip">${esc((ALL_SLOTS.find(slot => slot.id===player.slotId)?.label || 'EXTRA'))}</span></td><td><strong class="table-points">${player.weekPoints === null || player.weekPoints === undefined ? '—' : fmt(player.weekPoints)}</strong></td><td><span class="player-source">${esc(player.weekPointsSource || (player.position==='D/ST'?'ESPN D/ST actual not available yet':'Weekly actual not available yet'))}</span></td><td><button class="roster-remove" data-remove-player="${index}" type="button">Remove</button></td></tr>`).join('') : '<tr><td colspan="6" class="empty-cell">No players yet. Import your ESPN league or add players from the player pool.</td></tr>';
@@ -769,14 +806,14 @@
     const id = match?.[1] || '';
     const season = Number($('leagueSeason').value || todayYear);
     if (!id || !Number.isInteger(season) || season < 2018 || season > todayYear+1) { setMessage('Enter a valid ESPN league ID or league URL and season.','error'); return; }
-    state.loading = true; setStatus('Connecting to ESPN…'); setMessage('Loading teams, standings, rosters and matchups…');
+    state.loading = true; setStatus('Connecting to ESPN…', 'loading'); setMessage('Loading teams, standings, rosters and matchups…');
     try {
       const week = state.league?.currentWeek || 1;
       const league = await loadPublicLeague(id,season,week);
       importLeagueData(league);
       setMessage(`Connected to ${league.name}: ${league.teams.length} teams and ${league.matchups.length} matchups loaded.`);
-      setStatus('ESPN league connected'); showTab('league');
-    } catch (error) { setMessage(`${error.message} ESPN public league access is unofficial and can be restricted by browser CORS. For a private league, use the local export helper.`,'error'); setStatus('Connection failed'); }
+      updateFreshnessStatus(); showTab('league');
+    } catch (error) { setMessage(`${error.message} ESPN public league access is unofficial and can be restricted by browser CORS. For a private league, use the local export helper.`,'error'); setStatus('Connection failed', 'error'); }
     finally { state.loading=false; }
   }
   function clearPersonalRoster() {
@@ -788,8 +825,8 @@
     readSaved();
     $('leagueSeason').value = state.season;
     $('manualTeam').innerHTML = TEAMS.map(team => `<option value="${team.abbr}">${team.abbr}</option>`).join('');
-    if (state.league) { $('leagueId').value=state.league.leagueId || ''; $('leagueSeason').value=state.league.season || state.season; setStatus('Saved league loaded'); }
-    else setStatus('Fantasy workspace');
+    if (state.league) { $('leagueId').value=state.league.leagueId || ''; $('leagueSeason').value=state.league.season || state.season; updateFreshnessStatus(); }
+    else setStatus('Fantasy workspace', 'neutral');
     document.querySelectorAll('.tab').forEach(button => button.addEventListener('click',() => showTab(button.dataset.tab)));
     $('themeToggle').addEventListener('click',() => { const next=document.documentElement.dataset.theme==='light'?'dark':'light'; document.documentElement.dataset.theme=next; try{localStorage.setItem('fg-fantasy-theme',next);}catch(_){} });
     const savedTheme = localStorage.getItem('fg-fantasy-theme'); if (savedTheme) document.documentElement.dataset.theme=savedTheme;
@@ -799,7 +836,7 @@
     $('matchupWeek').addEventListener('change',() => { state.selectedWeek=Number($('matchupWeek').value); state.selectedMatchupKey=''; save(); renderLeague(); });
     $('matchupList').addEventListener('click',event => { const card=event.target.closest('[data-matchup-key]'); if (!card) return; state.selectedMatchupKey=card.dataset.matchupKey; renderLeague(); $('matchupDetail').scrollIntoView({behavior:'smooth',block:'nearest'}); });
     $('refreshMatchupScores').addEventListener('click',() => refreshLeagueAppliedScores());
-    $('forgetLeague').addEventListener('click',() => { state.league=null; state.selectedTeamId=''; state.selectedWeek=1; save(); renderAll(); setStatus('Fantasy workspace'); setMessage('Imported league removed. Your personal roster has been kept.'); });
+    $('forgetLeague').addEventListener('click',() => { state.league=null; state.selectedTeamId=''; state.selectedWeek=1; save(); renderAll(); setStatus('Fantasy workspace', 'neutral'); setMessage('Imported league removed. Your personal roster has been kept.'); });
     $('reexportHint').addEventListener('click',() => setMessage('To refresh a private league, open the export helper, run the bookmarklet again from your signed-in ESPN league and import the newly downloaded JSON file.'));
     $('refreshFantasy').addEventListener('click',() => { refreshLeagueAppliedScores(); });
     $('clearRoster').addEventListener('click',clearPersonalRoster);
@@ -818,10 +855,11 @@
     });
     document.querySelector('[data-go-import]')?.addEventListener('click',() => { showTab('my-team'); $('leagueId').focus(); });
     renderAll();
-    if (state.league) { setStatus('Saved league loaded'); }
+    updateFreshnessStatus();
     // Public leagues can add genuine score snapshots while this page remains open.
     // Private league imports stay local and are refreshed through the ESPN export helper.
     setInterval(() => {
+      updateFreshnessStatus();
       const league=state.league;
       if (!league || league.privateImport || state.activeTab!=='league' || document.hidden) return;
       if (Number(state.selectedWeek)!==Number(league.currentWeek)) return;

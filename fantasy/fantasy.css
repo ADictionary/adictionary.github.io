@@ -80,3 +80,11 @@ body{background:radial-gradient(ellipse at 8% -8%,rgba(55,183,139,.22),transpare
 .matchup-player-row .avatar{width:29px;height:29px;flex:0 0 auto}.matchup-player-row>span:nth-child(2){display:flex;flex-direction:column;min-width:0;flex:1}
 .matchup-player-row b{font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.matchup-player-row small{font-size:8px;color:var(--muted)}.matchup-player-row strong{font:700 11px 'Space Grotesk';color:var(--green2);font-variant-numeric:tabular-nums}
 @media(max-width:700px){.matchup-detail-panel{padding:14px}.matchup-detail-header h3{font-size:16px}.matchup-boxscore-grid{grid-template-columns:1fr}.chart-legend small{flex-basis:100%;margin-left:0}.score-chart{min-height:150px}.matchup-scoreboard{gap:8px;padding:12px}.matchup-scoreboard strong{font-size:26px}}
+
+/* Clear freshness states for imported and live fantasy data. */
+.status-pill[data-state="fresh"]{color:var(--green);border-color:color-mix(in srgb,var(--green) 38%,var(--line));background:color-mix(in srgb,var(--green) 9%,var(--panel2))}
+.status-pill[data-state="private"]{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 34%,var(--line));background:color-mix(in srgb,var(--blue) 8%,var(--panel2))}
+.status-pill[data-state="stale"]{color:var(--amber);border-color:color-mix(in srgb,var(--amber) 42%,var(--line));background:color-mix(in srgb,var(--amber) 10%,var(--panel2))}
+.status-pill[data-state="error"]{color:var(--red);border-color:color-mix(in srgb,var(--red) 40%,var(--line));background:color-mix(in srgb,var(--red) 9%,var(--panel2))}
+.status-pill[data-state="neutral"]{color:var(--muted)}
+.status-pill[data-state="loading"]{color:var(--blue);border-color:color-mix(in srgb,var(--blue) 34%,var(--line));background:color-mix(in srgb,var(--blue) 8%,var(--panel2))}
